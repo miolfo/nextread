@@ -11,6 +11,7 @@
 /coverage/
 /playwright-report/
 /test-results/
+/.playwright-mcp/
 
 # TypeScript incremental build cache
 *.tsbuildinfo
