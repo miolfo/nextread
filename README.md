@@ -16,9 +16,11 @@ npm run dev
 Visit `http://localhost:3000`, `/app/import`, or `/app/recommendations` directly.
 No environment variables, API keys, backend, or external fonts are required.
 
-The import button and recommendation action buttons are intentionally inert.
-Recommendation preferences only live in component state and reset on refresh.
-There is no file processing, persistence, or recommendation service integration.
+The import screen accepts any selected file and posts it to a local mock endpoint,
+which logs its filename and returns a fixed import ID. The review page is a static
+illustration and does not reflect the uploaded file. Recommendation action buttons
+remain inert; preferences live in component state and reset on refresh. There is no
+file parsing, persistence, or recommendation service integration.
 
 ## Verification
 

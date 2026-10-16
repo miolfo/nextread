@@ -6,7 +6,7 @@ Create a responsive, frontend-only visual demo of Next Read: an application for 
 
 Use `designs/Next Read Finder UI Mockup.png` as a reference for content and layout, not as a pixel-perfect styling specification. Start with basic shadcn/ui styling and minimal visual customization.
 
-This document is a plan only; application implementation is a separate step.
+This document describes the current demo behavior and acceptance scope.
 
 ## 2. Stack
 
@@ -71,11 +71,12 @@ With a `src` directory, the route files would be `src/app/page.tsx`, `src/app/ap
 
 ### Behavior
 
-- Omit the “Import → Review” indicator entirely.
-- The upload panel is visual only: no file input behavior, drag-and-drop handling, file reading, validation, parsing, upload, or imported-book state.
-- “Choose file” is an enabled, inert button. It does not open a picker or display feedback.
-- Do not add “coming soon”, demo notices, or future-availability messages.
-- No review screen or continuation action.
+- “Choose file” opens a system file picker. Permit any file type; do not validate, read, or parse its contents in the browser.
+- After selection, show the filename and an enabled submit action. Submit the file as multipart form data to the local mock App Router endpoint (`POST /api/import`).
+- The mock endpoint accepts the file, logs its filename server-side, and returns `{ "importId": "123" }`. It does not persist or process the file contents.
+- On success, remain on `/app/import` and set `?importId=123`. When `importId` is present, show a static, illustrative review summary based on `designs/Next Read Finder Import Review.png`; the counts, ratings, genres, and sample books are mock content, not derived from the submitted file.
+- “Import a different file” removes the query and restores the import step. “Continue to recommendations” navigates to `/app/recommendations`.
+- No CSV validation, parsing, file-content reading, real imported-book state, or persistence.
 
 ### Likely shadcn components
 
@@ -152,14 +153,14 @@ Start genre selections empty. Selected genres can be added and removed with stan
 
 ## 10. Explicitly out of scope
 
-- CSV selection, import, parsing, validation, or processing.
+- File-content reading, CSV parsing/validation, or processing; the mock upload endpoint and illustrative review are in scope.
 - Reading-history review or editing.
 - Results pages or sample recommendation results.
 - AI integration, Open Library integration, and recommendation algorithms.
-- Backend endpoints, database, authentication, and accounts.
+- Database, authentication, and accounts.
 - Persistence of any kind, including local storage, session storage, and cookies for application state.
 - Custom branding assets and a bespoke visual design system.
-- Connecting the import and recommendation flows.
+- Real book data in the review summary or connecting imported data to recommendations.
 
 ## 11. Implementation sequence
 
@@ -182,8 +183,9 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - All shadcn definitions reside under `src/components`, and consumers import only those local UI definitions via `@/components`.
 - Styling is encapsulated in components, apart from required global setup and theme tokens.
 - Recommendation controls work locally, and contradictory genre selections are prevented.
-- Upload and recommendation buttons perform no action and show no feedback.
-- No file processing, recommendation network requests, or persistence occurs.
+- The import picker accepts arbitrary files; upload posts multipart data and the mock server logs its filename and returns import ID `123`.
+- Successful import query state shows the static review; reset and continue actions work.
+- No file parsing/validation, real review data, recommendation network requests, or persistence occurs.
 - Check layouts at representative mobile, tablet, and desktop widths (for example, 375, 768, and 1440 pixels).
 - Run TypeScript checking, the scaffold's configured lint command, and a production build. If the scaffold does not provide linting, configure it explicitly rather than assuming `next lint` exists.
 - Inspect the browser console for runtime errors and manually test keyboard interaction.
