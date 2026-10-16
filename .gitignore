@@ -1,0 +1,39 @@
+# Dependencies
+/node_modules/
+
+# Next.js build output
+/.next/
+/out/
+
+# Other build and test output
+/build/
+/dist/
+/coverage/
+/playwright-report/
+/test-results/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+next-env.d.ts
+
+# Local environment variables and secrets
+.env*
+!.env.example
+!.env.sample
+*.pem
+*.key
+
+# npm logs
+npm-debug.log*
+
+# Deployment metadata
+/.vercel/
+
+# macOS metadata
+.DS_Store
+._*
+
+# Editor temporary files
+*.swp
+*.swo
+*~
