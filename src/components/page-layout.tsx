@@ -1,4 +1,8 @@
+"use client";
+
 import { BookOpen } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 export function PageLayout({
@@ -8,12 +12,41 @@ export function PageLayout({
   children: ReactNode;
   narrow?: boolean;
 }) {
+  const pathname = usePathname();
+
   return (
     <div className="min-h-screen">
       <header className="border-b">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 py-5 sm:px-6">
-          <BookOpen aria-hidden="true" className="size-6" />
-          <span className="text-lg font-semibold">Next Read</span>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-4 sm:px-6">
+          <Link
+            aria-current={pathname === "/" ? "page" : undefined}
+            className="flex shrink-0 items-center gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+            href="/"
+          >
+            <BookOpen aria-hidden="true" className="size-6" />
+            <span className="text-lg font-semibold">Next Read</span>
+          </Link>
+          <nav
+            aria-label="Main navigation"
+            className="flex flex-wrap gap-x-5 gap-y-2"
+          >
+            <Link
+              aria-current={pathname === "/app/import" ? "page" : undefined}
+              className="rounded-sm text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring aria-[current=page]:text-foreground"
+              href="/app/import"
+            >
+              Import
+            </Link>
+            <Link
+              aria-current={
+                pathname === "/app/recommendations" ? "page" : undefined
+              }
+              className="rounded-sm text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring aria-[current=page]:text-foreground"
+              href="/app/recommendations"
+            >
+              Recommendations
+            </Link>
+          </nav>
         </div>
       </header>
       <main

@@ -2,11 +2,29 @@ import { render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import ImportPage from "@/app/app/import/page";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/app/import",
+  useRouter: () => ({ replace: vi.fn() }),
+}));
 
 it("shows the import step without importId and the review with importId", async () => {
   const importStep = await ImportPage({ searchParams: Promise.resolve({}) });
   const { rerender } = render(importStep);
+  expect(screen.getByRole("link", { name: "Next Read" })).toHaveAttribute(
+    "href",
+    "/",
+  );
+  expect(
+    screen.getByRole("navigation", { name: "Main navigation" }),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Import" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  expect(screen.getByRole("link", { name: "Recommendations" })).toHaveAttribute(
+    "href",
+    "/app/recommendations",
+  );
   expect(
     screen.getByRole("heading", { name: "Import your Goodreads data" }),
   ).toBeInTheDocument();
