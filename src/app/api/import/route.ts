@@ -8,19 +8,40 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const data = await request.formData();
-  const file = data.get("file");
+  const formData = await request.formData();
+  const file = formData.get("file");
 
   if (!file || typeof file !== "object" || !("name" in file)) {
     return Response.json({ error: "A file is required" }, { status: 400 });
   }
 
-  console.info(`Received import file: ${file.name}`);
+  let bookCount: number | null = null;
   try {
-    const books = parseGoodreadsCsv(await file.text());
-    books.forEach((book) => console.info("Parsed Goodreads book:", book));
+    bookCount = parseGoodreadsCsv(await file.text()).length;
   } catch {
     console.warn("Unable to parse uploaded Goodreads CSV.");
   }
-  return Response.json({ importId: "123" });
+
+  const { data, error } = await supabase
+    .from("import_runs")
+    .insert({
+      user_id: user.id,
+      source: "goodreads",
+      original_filename: file.name,
+      status: "received",
+      book_count: bookCount,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    console.error("Unable to create import run", {
+      operation: "insert",
+      table: "import_runs",
+      code: error?.code,
+    });
+    return Response.json({ error: "Unable to create import" }, { status: 500 });
+  }
+
+  return Response.json({ importId: data.id });
 }
