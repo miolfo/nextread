@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { parseGoodreadsCsv } from "@/lib/goodreads-csv";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -15,5 +16,11 @@ export async function POST(request: Request) {
   }
 
   console.info(`Received import file: ${file.name}`);
+  try {
+    const books = parseGoodreadsCsv(await file.text());
+    books.forEach((book) => console.info("Parsed Goodreads book:", book));
+  } catch {
+    console.warn("Unable to parse uploaded Goodreads CSV.");
+  }
   return Response.json({ importId: "123" });
 }
