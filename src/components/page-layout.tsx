@@ -38,6 +38,13 @@ export function PageLayout({
               Import
             </Link>
             <Link
+              aria-current={pathname === "/app/imports" ? "page" : undefined}
+              className="rounded-sm text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring aria-[current=page]:text-foreground"
+              href="/app/imports"
+            >
+              Import history
+            </Link>
+            <Link
               aria-current={
                 pathname === "/app/recommendations" ? "page" : undefined
               }
