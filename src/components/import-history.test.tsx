@@ -1,13 +1,18 @@
 import { render, screen, within } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
-import ImportsPage from "@/app/app/imports/page";
+import ImportsPage from "@/app/app/(protected)/imports/page";
+
+vi.mock("@/lib/supabase/auth", () => ({
+  requireAuthenticatedUser: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/app/imports",
+  useRouter: () => ({ replace: vi.fn(), refresh: vi.fn() }),
 }));
 
-it("renders static import history and links each record to its review", () => {
-  render(<ImportsPage />);
+it("renders static import history and links each record to its review", async () => {
+  render(await ImportsPage());
 
   expect(
     screen.getByRole("heading", { name: "Imported files" }),

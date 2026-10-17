@@ -1,7 +1,7 @@
 import { PageIntroduction, PageLayout } from "@/components/page-layout";
 import { RecommendationControls } from "@/components/recommendation-controls";
 
-export default function RecommendationsPage() {
+export default async function RecommendationsPage() {
   return (
     <PageLayout>
       <PageIntroduction title="Get book recommendations">

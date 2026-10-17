@@ -2,7 +2,7 @@
 
 ## 1. Objective
 
-Create a responsive, frontend-only visual demo of Next Read: an application for finding books based on a user's Goodreads reading history, ratings, reviews, and preferences.
+Create a responsive Next Read demo with Supabase email/password authentication and frontend-only book discovery features based on a user's Goodreads reading history, ratings, reviews, and preferences.
 
 Use `designs/Next Read Finder UI Mockup.png` as a reference for content and layout, not as a pixel-perfect styling specification. Start with basic shadcn/ui styling and minimal visual customization.
 
@@ -23,6 +23,7 @@ This document describes the current demo behavior and acceptance scope.
 | --- | --- |
 | `/` | Minimal splash page explaining the application. |
 | `/app/import` | Visual Goodreads CSV import screen. |
+| `/app/login` | Email/password sign-in. |
 | `/app/recommendations` | Mock recommendation configuration screen. |
 
 All routes are independently accessible. The import and recommendation views do not need to link to each other, and recommendations must not require an import.
@@ -52,7 +53,7 @@ With a `src` directory, the route files would be `src/app/page.tsx`, `src/app/ap
 
 - A deliberately sparse page with the application name and a short explanation.
 - Suggested copy: “Find your next book based on your Goodreads reading history, ratings, and reviews.”
-- No onboarding flow, authentication, or import requirements.
+- The splash page remains public; authenticated app routes require a Supabase session.
 - No additional calls to action are required for this iteration.
 
 ## 7. Import page — `/app/import`
@@ -157,7 +158,7 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - Reading-history review or editing.
 - Results pages or sample recommendation results.
 - AI integration, Open Library integration, and recommendation algorithms.
-- Database, authentication, and accounts.
+- Database persistence/tables, CSV processing, and recommendation data integrations.
 - Persistence of any kind, including local storage, session storage, and cookies for application state.
 - Custom branding assets and a bespoke visual design system.
 - Real book data in the review summary or connecting imported data to recommendations.
@@ -198,5 +199,6 @@ Confirmed implementation choices:
 - Package manager: npm.
 - Initial recommendation count: **10** in both cards.
 - Included and excluded genres: initially empty.
+- Supabase email/password authentication protects `/app/*`; persistence and database tables remain future work.
 
 The fixed genre list and focus options above remain the proposed options; no further decisions are required to begin the scoped implementation.

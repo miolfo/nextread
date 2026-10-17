@@ -1,4 +1,12 @@
+import { createClient } from "@/lib/supabase/server";
+
 export async function POST(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
   const data = await request.formData();
   const file = data.get("file");
 

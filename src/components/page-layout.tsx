@@ -4,6 +4,7 @@ import { BookOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { SignOutButton } from "@/components/sign-out-button";
 
 export function PageLayout({
   children,
@@ -53,6 +54,7 @@ export function PageLayout({
             >
               Recommendations
             </Link>
+            {pathname.startsWith("/app/") && <SignOutButton />}
           </nav>
         </div>
       </header>
