@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { parseGoodreadsCsv } from "@/lib/goodreads-csv";
+import { parseGoodreadsCsv, type GoodreadsBook } from "@/lib/goodreads-csv";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -15,9 +15,9 @@ export async function POST(request: Request) {
     return Response.json({ error: "A file is required" }, { status: 400 });
   }
 
-  let bookCount: number | null = null;
+  let books: GoodreadsBook[] | null = null;
   try {
-    bookCount = parseGoodreadsCsv(await file.text()).length;
+    books = parseGoodreadsCsv(await file.text());
   } catch {
     console.warn("Unable to parse uploaded Goodreads CSV.");
   }
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       source: "goodreads",
       original_filename: file.name,
       status: "received",
-      book_count: bookCount,
+      book_count: books?.length ?? null,
     })
     .select("id")
     .single();
@@ -41,6 +41,44 @@ export async function POST(request: Request) {
       code: error?.code,
     });
     return Response.json({ error: "Unable to create import" }, { status: 500 });
+  }
+
+  if (books) {
+    const { error: booksError } = await supabase.from("imported_books").insert(
+      books.map((book) => ({
+        import_run_id: data.id,
+        title: book.Title,
+        author: book.Author,
+        additional_authors: book["Additional Authors"],
+        isbn: book.ISBN,
+        my_rating: book["My Rating"],
+        original_publication_year: book["Original Publication Year"],
+        date_read: book["Date Read"],
+      })),
+    );
+
+    if (booksError) {
+      console.error("Unable to insert imported books", {
+        operation: "insert",
+        table: "imported_books",
+        code: booksError.code,
+      });
+      const { error: cleanupError } = await supabase
+        .from("import_runs")
+        .delete()
+        .eq("id", data.id);
+      if (cleanupError) {
+        console.error("Unable to clean up import run", {
+          operation: "delete",
+          table: "import_runs",
+          code: cleanupError.code,
+        });
+      }
+      return Response.json(
+        { error: "Unable to create import" },
+        { status: 500 },
+      );
+    }
   }
 
   return Response.json({ importId: data.id });
