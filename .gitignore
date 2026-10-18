@@ -23,6 +23,7 @@ next-env.d.ts
 !.env.sample
 *.pem
 *.key
+.sampleuser
 
 # npm logs
 npm-debug.log*
