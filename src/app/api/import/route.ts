@@ -51,6 +51,7 @@ export async function POST(request: Request) {
         author: book.Author,
         additional_authors: book["Additional Authors"],
         isbn: book.ISBN,
+        isbn13: book.ISBN13,
         my_rating: book["My Rating"],
         original_publication_year: book["Original Publication Year"],
         date_read: book["Date Read"],

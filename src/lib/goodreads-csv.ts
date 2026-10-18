@@ -5,6 +5,7 @@ const BOOK_FIELDS = [
   "Author",
   "Additional Authors",
   "ISBN",
+  "ISBN13",
   "My Rating",
   "Original Publication Year",
   "Date Read",
@@ -26,6 +27,7 @@ export function parseGoodreadsCsv(csv: string): GoodreadsBook[] {
         BOOK_FIELDS.map((field) => [field, row[field] ?? ""]),
       ) as GoodreadsBook;
       book.ISBN = book.ISBN.replace(/^="(.*)"$/, "$1");
+      book.ISBN13 = book.ISBN13.replace(/^="(.*)"$/, "$1");
       return book;
     });
 }
