@@ -1,91 +1,104 @@
-import { BookOpen, CircleCheck, Star, Users, File } from "lucide-react";
+import { BookOpen, File, Star, Users } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-const imports = [
-  {
-    id: "goodreads-2025",
-    filename: "goodreads_export_2025.csv",
-    size: "1.2 MB",
-    imported: "Oct 14, 2026 · 10:24",
-    books: 237,
-    rated: 214,
-    ratedPercent: "90%",
-    read: 23,
-    readPercent: "10%",
-    authors: 156,
-    genres: ["Science Fiction", "Fantasy", "Adventure"],
-  },
-  {
-    id: "goodreads-2024",
-    filename: "goodreads_export_2024.csv",
-    size: "980 KB",
-    imported: "Jan 3, 2025 · 14:12",
-    books: 125,
-    rated: 98,
-    ratedPercent: "78%",
-    read: 67,
-    readPercent: "54%",
-    authors: 89,
-    genres: ["Fantasy", "Mystery", "Fiction"],
-  },
-  {
-    id: "goodreads-2023",
-    filename: "goodreads_export_2023.csv",
-    size: "862 KB",
-    imported: "Jan 8, 2024 · 09:41",
-    books: 78,
-    rated: 62,
-    ratedPercent: "79%",
-    read: 52,
-    readPercent: "67%",
-    authors: 61,
-    genres: ["Science Fiction", "Thriller", "Mystery"],
-  },
-  {
-    id: "goodreads-2022",
-    filename: "goodreads_export_2022.csv",
-    size: "756 KB",
-    imported: "Jan 10, 2023 · 16:20",
-    books: 32,
-    rated: 24,
-    ratedPercent: "75%",
-    read: 14,
-    readPercent: "44%",
-    authors: 28,
-    genres: ["Fantasy", "Adventure", "Romance"],
-  },
-];
+export type ImportedBook = {
+  author: string | null;
+  my_rating: string | null;
+};
 
-const summaries = [
-  {
-    label: "Total books",
-    value: "472",
-    detail: "Across all imports",
-    icon: BookOpen,
-  },
-  {
-    label: "Rated books",
-    value: "398",
-    detail: "84% of all books",
-    icon: Star,
-  },
-  {
-    label: "Marked as read",
-    value: "156",
-    detail: "33% of all books",
-    icon: CircleCheck,
-  },
-  {
-    label: "Unique authors",
-    value: "287",
-    detail: "Across all books",
-    icon: Users,
-  },
-];
+export type ImportRun = {
+  id: string;
+  original_filename: string | null;
+  created_at: string;
+  books: ImportedBook[];
+};
 
-export function ImportHistory() {
+function validRating(value: string | null) {
+  if (value === null || value.trim() === "") return null;
+  const rating = Number(value);
+  return Number.isFinite(rating) && rating >= 1 && rating <= 5 ? rating : null;
+}
+
+function formatImportedAt(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+export function ImportHistory({
+  imports = [],
+  error = false,
+}: {
+  imports?: ImportRun[];
+  error?: boolean;
+}) {
+  if (error) {
+    return (
+      <section className="space-y-4" aria-labelledby="import-history-error">
+        <h1
+          id="import-history-error"
+          className="text-3xl font-semibold tracking-tight"
+        >
+          Import history unavailable
+        </h1>
+        <p role="alert" className="text-muted-foreground">
+          We couldn’t load your import history. Please try again.
+        </p>
+        <Button
+          nativeButton={false}
+          role="link"
+          render={<Link href="/app/imports" />}
+          variant="outline"
+        >
+          Retry
+        </Button>
+      </section>
+    );
+  }
+
+  const books = imports.flatMap((item) => item.books);
+  const ratings = books
+    .map((book) => validRating(book.my_rating))
+    .filter((rating): rating is number => rating !== null);
+  const authors = new Set(
+    books.map((book) => book.author?.trim()).filter((author) => author),
+  );
+  const averageRating =
+    ratings.length > 0
+      ? (ratings.reduce((total, rating) => total + rating, 0) / ratings.length)
+          .toFixed(1)
+          .replace(/\.0$/, "")
+      : "—";
+  const summaries = [
+    {
+      label: "Total books",
+      value: books.length.toLocaleString(),
+      detail: "Across all imports",
+      icon: BookOpen,
+    },
+    {
+      label: "Rated books",
+      value: ratings.length.toLocaleString(),
+      detail: "Books with a valid rating",
+      icon: Star,
+    },
+    {
+      label: "Average rating",
+      value: averageRating,
+      detail: ratings.length ? "Out of 5" : "No valid ratings yet",
+      icon: Star,
+    },
+    {
+      label: "Unique authors",
+      value: authors.size.toLocaleString(),
+      detail: "Across all books",
+      icon: Users,
+    },
+  ];
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -141,99 +154,112 @@ export function ImportHistory() {
             contents.
           </p>
         </div>
-        <div className="overflow-x-auto rounded-xl ring-1 ring-foreground/10">
-          <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="border-b bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 font-medium" scope="col">
-                  File name
-                </th>
-                <th className="px-4 py-3 font-medium" scope="col">
-                  Imported
-                </th>
-                <th className="px-4 py-3 font-medium" scope="col">
-                  Books
-                </th>
-                <th className="px-4 py-3 font-medium" scope="col">
-                  Rated
-                </th>
-                <th className="px-4 py-3 font-medium" scope="col">
-                  Read
-                </th>
-                <th className="px-4 py-3 font-medium" scope="col">
-                  Authors
-                </th>
-                <th className="px-4 py-3 font-medium" scope="col">
-                  Top genres
-                </th>
-                <th className="px-4 py-3 font-medium" scope="col">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {imports.map((item) => (
-                <tr key={item.id}>
-                  <th className="px-4 py-4 font-medium" scope="row">
-                    <span className="flex items-center gap-3">
-                      <File aria-hidden="true" className="size-5 shrink-0" />
-                      <span>
-                        {item.filename}
-                        <span className="block font-normal text-muted-foreground">
-                          {item.size}
-                        </span>
-                      </span>
-                    </span>
+        {imports.length === 0 ? (
+          <Card>
+            <CardContent className="space-y-3 py-8 text-center">
+              <p className="font-medium">No imports yet</p>
+              <p className="text-sm text-muted-foreground">
+                Import your Goodreads library to see its books and reading
+                statistics here.
+              </p>
+              <Button
+                nativeButton={false}
+                role="link"
+                render={<Link href="/app/import" />}
+              >
+                Import a Goodreads file
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="overflow-x-auto rounded-xl ring-1 ring-foreground/10">
+            <table className="w-full min-w-[760px] text-left text-sm">
+              <thead className="border-b bg-muted/50">
+                <tr>
+                  <th className="px-4 py-3 font-medium" scope="col">
+                    File name
                   </th>
-                  <td className="px-4 py-4 text-muted-foreground">
-                    {item.imported}
-                  </td>
-                  <td className="px-4 py-4">{item.books}</td>
-                  <td className="px-4 py-4">
-                    {item.rated}
-                    <span className="block text-muted-foreground">
-                      {item.ratedPercent}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4">
-                    {item.read}
-                    <span className="block text-muted-foreground">
-                      {item.readPercent}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4">{item.authors}</td>
-                  <td className="px-4 py-4">
-                    <div className="flex max-w-64 flex-wrap gap-1.5">
-                      {item.genres.map((genre) => (
-                        <span
-                          className="rounded-md bg-muted px-2 py-1 text-xs"
-                          key={genre}
-                        >
-                          {genre}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-4 py-4">
-                    <Button
-                      nativeButton={false}
-                      role="link"
-                      render={
-                        <Link
-                          href={`/app/import?importId=${encodeURIComponent(item.id)}`}
-                        />
-                      }
-                      variant="outline"
-                      size="sm"
-                    >
-                      View details
-                    </Button>
-                  </td>
+                  <th className="px-4 py-3 font-medium" scope="col">
+                    Imported
+                  </th>
+                  <th className="px-4 py-3 font-medium" scope="col">
+                    Books
+                  </th>
+                  <th className="px-4 py-3 font-medium" scope="col">
+                    Rated
+                  </th>
+                  <th className="px-4 py-3 font-medium" scope="col">
+                    Average rating
+                  </th>
+                  <th className="px-4 py-3 font-medium" scope="col">
+                    Authors
+                  </th>
+                  <th className="px-4 py-3 font-medium" scope="col">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y">
+                {imports.map((item) => {
+                  const itemRatings = item.books
+                    .map((book) => validRating(book.my_rating))
+                    .filter((rating): rating is number => rating !== null);
+                  const itemAuthors = new Set(
+                    item.books
+                      .map((book) => book.author?.trim())
+                      .filter((author) => author),
+                  );
+                  const itemAverage = itemRatings.length
+                    ? (
+                        itemRatings.reduce(
+                          (total, rating) => total + rating,
+                          0,
+                        ) / itemRatings.length
+                      )
+                        .toFixed(1)
+                        .replace(/\.0$/, "")
+                    : "—";
+
+                  return (
+                    <tr key={item.id}>
+                      <th className="px-4 py-4 font-medium" scope="row">
+                        <span className="flex items-center gap-3">
+                          <File
+                            aria-hidden="true"
+                            className="size-5 shrink-0"
+                          />
+                          {item.original_filename || "Filename unavailable"}
+                        </span>
+                      </th>
+                      <td className="px-4 py-4 text-muted-foreground">
+                        {formatImportedAt(item.created_at)}
+                      </td>
+                      <td className="px-4 py-4">{item.books.length}</td>
+                      <td className="px-4 py-4">{itemRatings.length}</td>
+                      <td className="px-4 py-4">{itemAverage}</td>
+                      <td className="px-4 py-4">{itemAuthors.size}</td>
+                      <td className="px-4 py-4">
+                        <Button
+                          nativeButton={false}
+                          role="link"
+                          render={
+                            <Link
+                              href={`/app/import?importId=${encodeURIComponent(item.id)}`}
+                            />
+                          }
+                          variant="outline"
+                          size="sm"
+                        >
+                          View details
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </div>
   );
