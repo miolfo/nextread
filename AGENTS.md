@@ -17,7 +17,8 @@
 
 ## Commands and verification
 
-- Setup: `npm ci`; development: `npm run dev`. No environment variables, API keys, or services are needed.
+- Setup: `npm ci`; development: `npm run dev`.
+- For authenticated local testing, configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in an ignored local env file (for example, `.env.local`). The local test account is documented in the ignored root `.sampleuser` file under `TEST_USERNAME` and `TEST_PASSWORD`; `TEST_USERNAME` is the account's email address. Use these only for local testing. Never copy the credentials into tracked files, source code, or command output.
 - After application changes, run the configured checks from the repository root:
 
   ```sh
