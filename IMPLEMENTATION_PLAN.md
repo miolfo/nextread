@@ -22,7 +22,7 @@ This document describes the current demo behavior and acceptance scope.
 | URL | Purpose |
 | --- | --- |
 | `/` | Minimal splash page explaining the application. |
-| `/app/import` | Visual Goodreads CSV import screen. |
+| `/app/import` | Goodreads CSV import screen and saved-import review. |
 | `/app/login` | Email/password sign-in. |
 | `/app/recommendations` | Mock recommendation configuration screen. |
 
@@ -73,11 +73,11 @@ With a `src` directory, the route files would be `src/app/page.tsx`, `src/app/ap
 ### Behavior
 
 - “Choose file” opens a system file picker. Permit any file type; do not validate, read, or parse its contents in the browser.
-- After selection, show the filename and an enabled submit action. Submit the file as multipart form data to the local mock App Router endpoint (`POST /api/import`).
-- The mock endpoint accepts the file, logs its filename server-side, and returns `{ "importId": "123" }`. It does not persist or process the file contents.
-- On success, remain on `/app/import` and set `?importId=123`. When `importId` is present, show a static, illustrative review summary based on `designs/Next Read Finder Import Review.png`; the counts, ratings, genres, and sample books are mock content, not derived from the submitted file.
+- After selection, show the filename and an enabled submit action. Submit the file as multipart form data to the App Router endpoint (`POST /api/import`).
+- The endpoint parses the Goodreads CSV server-side and stores the import run and its book records in Supabase, then returns the new import ID. The browser does not inspect file contents.
+- On success, remain on `/app/import` and set `?importId=…`. When `importId` is present, load that import's saved `imported_books` rows through the authenticated Supabase server client and show a data-backed review. Display total books, rated books, unique authors, a rating distribution, and up to five newest records with valid read dates. Missing values are shown as unavailable; no records show zero/empty values, and query errors show an unavailable state.
 - “Import a different file” removes the query and restores the import step. “Continue to recommendations” navigates to `/app/recommendations`.
-- No CSV validation, parsing, file-content reading, real imported-book state, or persistence.
+- Do not read uploaded contents in the browser; records are parsed and persisted server-side.
 
 ### Likely shadcn components
 
@@ -154,14 +154,14 @@ Start genre selections empty. Selected genres can be added and removed with stan
 
 ## 10. Explicitly out of scope
 
-- File-content reading, CSV parsing/validation, or processing; the mock upload endpoint and illustrative review are in scope.
+- Browser-side file-content reading or validation.
 - Reading-history review or editing.
 - Results pages or sample recommendation results.
 - AI integration, Open Library integration, and recommendation algorithms.
-- Database persistence/tables, CSV processing, and recommendation data integrations.
-- Persistence of any kind, including local storage, session storage, and cookies for application state.
+- Recommendation data integrations.
+- Persistence of recommendation preferences or other transient application state (import records are persisted as described above).
 - Custom branding assets and a bespoke visual design system.
-- Real book data in the review summary or connecting imported data to recommendations.
+- Connecting imported data to recommendations.
 
 ## 11. Implementation sequence
 
@@ -184,9 +184,10 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - All shadcn definitions reside under `src/components`, and consumers import only those local UI definitions via `@/components`.
 - Styling is encapsulated in components, apart from required global setup and theme tokens.
 - Recommendation controls work locally, and contradictory genre selections are prevented.
-- The import picker accepts arbitrary files; upload posts multipart data and the mock server logs its filename and returns import ID `123`.
-- Successful import query state shows the static review; reset and continue actions work.
-- No file parsing/validation, real review data, recommendation network requests, or persistence occurs.
+- The import picker accepts arbitrary files; upload posts multipart data and returns the saved import ID.
+- Successful import query state fetches and reviews only the selected import's saved records; reset and continue actions work.
+- Review summaries and latest reads derive only from saved records; empty and query-error states do not show fabricated data.
+- Recommendation network requests and integrations remain out of scope.
 - Check layouts at representative mobile, tablet, and desktop widths (for example, 375, 768, and 1440 pixels).
 - Run TypeScript checking, the scaffold's configured lint command, and a production build. If the scaffold does not provide linting, configure it explicitly rather than assuming `next lint` exists.
 - Inspect the browser console for runtime errors and manually test keyboard interaction.

@@ -5,99 +5,107 @@ import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
-  Check,
-  CircleCheck,
   Star,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const ratings = [
-  ["5 stars", "84", "39%", "w-[71%]"],
-  ["4 stars", "72", "34%", "w-[61%]"],
-  ["3 stars", "43", "20%", "w-[36%]"],
-  ["2 stars", "18", "8%", "w-[15%]"],
-  ["1 star", "5", "2%", "w-[5%]"],
-];
-const genres = [
-  ["Science Fiction", "92", "39%", "w-[72%]"],
-  ["Fantasy", "68", "29%", "w-[53%]"],
-  ["Adventure", "41", "17%", "w-[32%]"],
-  ["Mystery", "24", "10%", "w-[19%]"],
-  ["Fiction", "18", "8%", "w-[14%]"],
-];
-const books = [
-  ["Project Hail Mary", "Andy Weir", "★★★★★"],
-  ["Dune", "Frank Herbert", "★★★★☆"],
-  ["The Martian", "Andy Weir", "★★★★★"],
-  ["A Memory Called Empire", "Arkady Martine", "★★★★☆"],
-  ["Children of Time", "Adrian Tchaikovsky", "★★★★☆"],
-];
+export type ReviewBook = {
+  id: string;
+  title: string | null;
+  author: string | null;
+  my_rating: string | null;
+  date_read: string | null;
+};
 
-function DistributionCard({
-  title,
-  description,
-  rows,
-  numbered = false,
-}: {
-  title: string;
-  description: string;
-  rows: string[][];
-  numbered?: boolean;
-}) {
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle>{title}</CardTitle>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {rows.map(([label, count, percent, width], index) => (
-          <div
-            key={label}
-            className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 text-sm"
-          >
-            <span className="flex min-w-24 items-center gap-2">
-              {numbered ? (
-                <span className="grid size-6 place-items-center rounded-full bg-muted font-medium">
-                  {index + 1}
-                </span>
-              ) : (
-                <>
-                  {label}
-                  <Star
-                    aria-hidden="true"
-                    className="size-4 fill-amber-500 text-amber-500"
-                  />
-                </>
-              )}
-              {numbered && label}
-            </span>
-            <span className="h-3 overflow-hidden rounded-full bg-muted">
-              <span
-                className={`block h-full rounded-full bg-emerald-800 ${width}`}
-              />
-            </span>
-            <span className="whitespace-nowrap text-muted-foreground">
-              {count} ({percent})
-            </span>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
+function readDate(value: string | null) {
+  if (!value?.trim()) return null;
+  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value.trim());
+  if (match) {
+    const [, month, day, year] = match;
+    const date = new Date(
+      Date.UTC(Number(year), Number(month) - 1, Number(day)),
+    );
+    if (
+      date.getUTCFullYear() !== Number(year) ||
+      date.getUTCMonth() !== Number(month) - 1 ||
+      date.getUTCDate() !== Number(day)
+    )
+      return null;
+    return {
+      date,
+      display: `${month.padStart(2, "0")}/${day.padStart(2, "0")}/${year}`,
+    };
+  }
+  const isoMatch = /^(\d{4})[-/](\d{2})[-/](\d{2})$/.exec(value.trim());
+  if (!isoMatch) return null;
+  const [, year, month, day] = isoMatch;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  if (
+    date.getUTCFullYear() !== Number(year) ||
+    date.getUTCMonth() !== Number(month) - 1 ||
+    date.getUTCDate() !== Number(day)
+  )
+    return null;
+  return { date, display: `${year}-${month}-${day}` };
 }
 
-export function ImportReview() {
+function validRating(value: string | null) {
+  if (value === null || value.trim() === "") return null;
+  const rating = Number(value);
+  return Number.isFinite(rating) && rating >= 1 && rating <= 5
+    ? Math.floor(rating)
+    : null;
+}
+
+export function ImportReview({
+  books,
+  unavailable = false,
+}: {
+  books: ReviewBook[];
+  unavailable?: boolean;
+}) {
   const router = useRouter();
+  const ratedBooks = books.flatMap((book) => {
+    const rating = validRating(book.my_rating);
+    return rating === null ? [] : [{ book, rating }];
+  });
+  const authors = new Set(
+    books.map((book) => book.author?.trim()).filter(Boolean),
+  );
+  const ratingCounts = Array.from({ length: 5 }, (_, index) => {
+    const rating = 5 - index;
+    const count = ratedBooks.filter((entry) => entry.rating === rating).length;
+    return {
+      rating,
+      count,
+      percent: ratedBooks.length
+        ? Math.round((count / ratedBooks.length) * 100)
+        : 0,
+    };
+  });
+  const latestReads = books
+    .map((book) => ({ book, parsedDate: readDate(book.date_read) }))
+    .filter(
+      (
+        entry,
+      ): entry is {
+        book: ReviewBook;
+        parsedDate: NonNullable<ReturnType<typeof readDate>>;
+      } => Boolean(entry.parsedDate),
+    )
+    .sort((a, b) => b.parsedDate.date.getTime() - a.parsedDate.date.getTime())
+    .slice(0, 5);
+
   return (
     <section className="space-y-6" aria-labelledby="review-title">
       <div className="flex items-center justify-center gap-3 text-sm text-emerald-900">
         <span className="flex items-center gap-2">
           <span className="grid size-7 place-items-center rounded-full bg-emerald-700 text-white">
-            <Check className="size-4" />
+            ✓
           </span>
           Import
         </span>
@@ -111,77 +119,118 @@ export function ImportReview() {
       </div>
       <header className="space-y-2 text-center">
         <h2 id="review-title" className="text-3xl font-semibold tracking-tight">
-          Illustrative import review
+          Import review
         </h2>
         <p className="text-muted-foreground">
-          This example review shows how a library summary could look. The
-          figures and books below are mock content, not results from your file.
+          Review the books saved from this import.
         </p>
       </header>
-      <p
-        role="note"
-        className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"
-      >
-        Illustrative demo only: your uploaded file was not processed, and none
-        of the statistics or books shown here come from your data.
-      </p>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          [BookOpen, "237", "Example books"],
-          [Star, "214", "Example rated books"],
-          [CircleCheck, "23", "Example read books"],
-          [Users, "156", "Example authors"],
-        ].map(([Icon, count, label]) => (
-          <Card key={label as string} className="bg-emerald-50/50">
-            <CardContent className="flex items-center gap-4 pt-6">
-              <span className="grid size-14 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-950">
-                <Icon aria-hidden="true" className="size-7" />
-              </span>
-              <div>
-                <p className="text-3xl font-semibold">{count as string}</p>
-                <p className="text-sm text-muted-foreground">
-                  {label as string}
-                </p>
-              </div>
+      {unavailable ? (
+        <p
+          role="alert"
+          className="rounded-md border p-4 text-sm text-muted-foreground"
+        >
+          Import data is currently unavailable. Please try again later.
+        </p>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {(
+              [
+                [BookOpen, books.length, "Total books"],
+                [Star, ratedBooks.length, "Rated books"],
+                [Users, authors.size, "Unique authors"],
+              ] as [LucideIcon, number, string][]
+            ).map(([Icon, count, label]) => (
+              <Card key={label as string} className="bg-emerald-50/50">
+                <CardContent className="flex items-center gap-4 pt-6">
+                  <span className="grid size-14 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-950">
+                    <Icon aria-hidden="true" className="size-7" />
+                  </span>
+                  <div>
+                    <p className="text-3xl font-semibold">{count as number}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {label as string}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Ratings distribution</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Distribution of saved book ratings.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {ratingCounts.map(({ rating, count, percent }) => (
+                <div
+                  key={rating}
+                  className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 text-sm"
+                >
+                  <span className="flex min-w-24 items-center gap-2">
+                    {rating} {rating === 1 ? "star" : "stars"}
+                    <Star
+                      aria-hidden="true"
+                      className="size-4 fill-amber-500 text-amber-500"
+                    />
+                  </span>
+                  <span className="h-3 overflow-hidden rounded-full bg-muted">
+                    <span
+                      className="block h-full rounded-full bg-emerald-800"
+                      style={{ width: `${percent}%` }}
+                    />
+                  </span>
+                  <span className="whitespace-nowrap text-muted-foreground">
+                    {count} ({percent}%)
+                  </span>
+                </div>
+              ))}
+              {!ratedBooks.length && (
+                <p className="text-sm text-muted-foreground">No rated books.</p>
+              )}
             </CardContent>
           </Card>
-        ))}
-      </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <DistributionCard
-          title="Ratings distribution"
-          description="Illustrative breakdown of book ratings."
-          rows={ratings}
-        />
-        <DistributionCard
-          title="Top genres"
-          description="Illustrative distribution of book genres."
-          rows={genres}
-          numbered
-        />
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Example books</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            These sample titles are illustrative and are not from your file.
-          </p>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          {books.map(([title, author, rating]) => (
-            <div key={title} className="space-y-1">
-              <p className="font-medium">{title}</p>
-              <p className="text-sm text-muted-foreground">{author}</p>
-              <p
-                aria-label={`${rating.replaceAll("☆", "").length} out of 5 stars`}
-                className="text-amber-500"
-              >
-                {rating}
+          <Card>
+            <CardHeader>
+              <CardTitle>Latest reads</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Books with a saved read date, newest first.
               </p>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+            </CardHeader>
+            <CardContent>
+              {latestReads.length ? (
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+                  {latestReads.map(({ book, parsedDate }) => (
+                    <div key={book.id} className="space-y-1">
+                      <p className="font-medium">
+                        {book.title?.trim() || "Title unavailable"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {book.author?.trim() || "Author unavailable"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Read {parsedDate.display}
+                      </p>
+                      <p className="text-sm">
+                        {validRating(book.my_rating) !== null
+                          ? `${validRating(book.my_rating)} out of 5 stars`
+                          : "Rating unavailable"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No books with a valid read date.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
       <div className="flex flex-col justify-between gap-3 sm:flex-row">
         <Button
           type="button"
