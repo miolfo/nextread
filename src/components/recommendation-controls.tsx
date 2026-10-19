@@ -1,18 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { Shuffle, Sparkles } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { BookOpen, Hash, MessageCircle, Sparkles, Target } from "lucide-react";
 import { GenreSelector, type Genre } from "@/components/genre-selector";
-import { RecommendationGrid } from "@/components/page-layout";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -21,53 +13,43 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
 const COUNTS = ["5", "10", "20"];
 const FOCUSES = [
-  "No specific focus",
+  "Balanced",
   "Similar to my favorite books",
   "Explore something different",
   "Discover new authors",
 ];
 
-function CountSelector({
-  id,
-  value,
-  onChange,
-}: {
+export type RecommendationImport = {
   id: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>Number of recommendations</Label>
-      <Select value={value} onValueChange={(next) => next && onChange(next)}>
-        <SelectTrigger id={id} className="w-full">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {COUNTS.map((count) => (
-            <SelectItem key={count} value={count}>
-              {count}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
+  original_filename: string | null;
+  created_at: string;
+};
+
+function formatImportDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Date unavailable"
+    : new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(date);
 }
 
-export function RecommendationControls() {
+export function RecommendationControls({
+  imports = [],
+  importError = false,
+}: {
+  imports?: RecommendationImport[];
+  importError?: boolean;
+}) {
   const [request, setRequest] = useState("");
-  const [aiCount, setAiCount] = useState("10");
-  const [randomCount, setRandomCount] = useState("10");
+  const [count, setCount] = useState("10");
   const [focus, setFocus] = useState(FOCUSES[0]);
+  const [selectedImport, setSelectedImport] = useState("");
   const [included, setIncluded] = useState<Genre[]>([]);
   const [excluded, setExcluded] = useState<Genre[]>([]);
-  const [lesserKnown, setLesserKnown] = useState(true);
+  const selectedImportData = imports.find((item) => item.id === selectedImport);
 
   function toggleGenre(genre: Genre, target: "include" | "exclude") {
     const setTarget = target === "include" ? setIncluded : setExcluded;
@@ -81,100 +63,198 @@ export function RecommendationControls() {
   }
 
   return (
-    <RecommendationGrid>
-      <Card className="min-w-0">
-        <CardHeader>
-          <Sparkles aria-hidden="true" className="mb-2 size-6" />
-          <CardTitle>
-            <h2>AI Recommendations</h2>
-          </CardTitle>
-          <CardDescription>
-            Ask AI for personalized book suggestions based on your reading
-            history, ratings, and reviews.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
+    <Card className="mx-auto w-full max-w-4xl">
+      <CardContent className="space-y-0 p-0">
+        <section
+          className="space-y-4 p-5 sm:p-6"
+          aria-labelledby="prompt-heading"
+        >
+          <div className="flex items-center gap-3">
+            <MessageCircle aria-hidden="true" className="size-5" />
+            <div>
+              <h2 id="prompt-heading" className="font-semibold">
+                Optional prompt
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Describe what you&apos;re looking for, or leave this blank.
+              </p>
+            </div>
+          </div>
           <div className="space-y-2">
-            <Label htmlFor="request">Your request</Label>
+            <Label htmlFor="request" className="sr-only">
+              Optional prompt
+            </Label>
             <Textarea
               id="request"
+              maxLength={500}
               value={request}
               onChange={(event) => setRequest(event.target.value)}
               className="min-h-28"
-              placeholder="Suggest some fast-paced science fiction books similar to Project Hail Mary, but with a more mysterious tone."
+              placeholder={
+                "E.g. “Suggest me engaging fantasy books with strong character development”, “Books similar to Project Hail Mary”, or “Something cozy and easy to read”."
+              }
             />
-          </div>
-          <CountSelector id="ai-count" value={aiCount} onChange={setAiCount} />
-          <div className="space-y-2">
-            <Label htmlFor="focus">Focus (optional)</Label>
-            <Select
-              items={FOCUSES.map((value) => ({ value, label: value }))}
-              value={focus}
-              onValueChange={(next) => next && setFocus(next)}
+            <p
+              className="text-right text-xs text-muted-foreground"
+              aria-live="polite"
             >
-              <SelectTrigger id="focus" className="w-full">
+              {request.length}/500
+            </p>
+          </div>
+        </section>
+
+        <ControlRow
+          icon={Hash}
+          title="Number of recommendations"
+          description="Choose how many books to find."
+        >
+          <Select
+            value={count}
+            onValueChange={(value) => value && setCount(value)}
+          >
+            <SelectTrigger
+              aria-label="Number of recommendations"
+              className="w-full"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {COUNTS.map((item) => (
+                <SelectItem key={item} value={item}>
+                  {item}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </ControlRow>
+
+        <ControlRow
+          icon={Target}
+          title="Focus"
+          description="Influence how the recommendations are generated."
+        >
+          <div className="space-y-2">
+            <Select
+              value={focus}
+              onValueChange={(value) => value && setFocus(value)}
+            >
+              <SelectTrigger aria-label="Focus" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {FOCUSES.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
+                {FOCUSES.map((item) => (
+                  <SelectItem key={item} value={item}>
+                    {item}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-sm text-muted-foreground">
+              {focus === "Balanced"
+                ? "A mix of popularity, similarity to your taste, and variety."
+                : focus}
+            </p>
           </div>
-        </CardContent>
-        <CardFooter className="mt-auto">
-          <Button type="button" className="w-full">
-            <Sparkles aria-hidden="true" />
-            Get AI Recommendations
-          </Button>
-        </CardFooter>
-      </Card>
-      <Card className="min-w-0">
-        <CardHeader>
-          <Shuffle aria-hidden="true" className="mb-2 size-6" />
-          <CardTitle>
-            <h2>Randomized Recommendations</h2>
-          </CardTitle>
-          <CardDescription>
-            Discover books using your preferred genres and book reviews, with
-            book data from Open Library.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          <CountSelector
-            id="random-count"
-            value={randomCount}
-            onChange={setRandomCount}
-          />
+        </ControlRow>
+
+        <ControlRow
+          icon={BookOpen}
+          title="Include genres"
+          description="Add genres you’re interested in."
+        >
           <GenreSelector
             label="Include genres"
             selected={included}
             onToggle={(genre) => toggleGenre(genre, "include")}
           />
+        </ControlRow>
+        <ControlRow
+          icon={BookOpen}
+          title="Exclude genres"
+          description="Add genres you want to avoid."
+        >
           <GenreSelector
             label="Exclude genres"
             selected={excluded}
             onToggle={(genre) => toggleGenre(genre, "exclude")}
           />
-          <div className="flex items-center justify-between gap-4">
-            <Label htmlFor="lesser-known">Include lesser-known books</Label>
-            <Switch
-              id="lesser-known"
-              checked={lesserKnown}
-              onCheckedChange={setLesserKnown}
-            />
+        </ControlRow>
+
+        <section
+          className="space-y-3 border-t p-5 sm:p-6"
+          aria-labelledby="import-heading"
+        >
+          <div>
+            <h2 id="import-heading" className="font-semibold">
+              Import to use
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Choose a Goodreads import for your recommendations.
+            </p>
           </div>
-        </CardContent>
-        <CardFooter className="mt-auto">
-          <Button type="button" className="w-full">
-            <Shuffle aria-hidden="true" />
-            Generate Recommendations
-          </Button>
-        </CardFooter>
-      </Card>
-    </RecommendationGrid>
+          {importError ? (
+            <p role="alert" className="text-sm text-destructive">
+              Your imports couldn’t be loaded. Try again later.
+            </p>
+          ) : imports.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No imports available. Import a Goodreads file to see it here.
+            </p>
+          ) : (
+            <Select
+              value={selectedImport}
+              onValueChange={(value) => value && setSelectedImport(value)}
+            >
+              <SelectTrigger aria-label="Import to use" className="w-full">
+                <SelectValue placeholder="Select an import">
+                  {selectedImportData
+                    ? `${selectedImportData.original_filename || "Filename unavailable"} — ${formatImportDate(selectedImportData.created_at)}`
+                    : undefined}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {imports.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.original_filename || "Filename unavailable"} —{" "}
+                    {formatImportDate(item.created_at)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </section>
+      </CardContent>
+      <CardFooter className="border-t p-5 sm:p-6">
+        <Button type="button" className="w-full">
+          <Sparkles aria-hidden="true" />
+          Generate recommendations
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
+function ControlRow({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: typeof Hash;
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="grid gap-4 border-t p-5 sm:grid-cols-2 sm:items-center sm:p-6">
+      <div className="flex items-start gap-3">
+        <Icon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
+        <div>
+          <h2 className="font-semibold">{title}</h2>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      {children}
+    </section>
   );
 }

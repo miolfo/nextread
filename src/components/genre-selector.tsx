@@ -43,7 +43,7 @@ export function GenreSelector({
 }) {
   const id = useId();
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <Label htmlFor={id}>{label}</Label>
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-1.5">

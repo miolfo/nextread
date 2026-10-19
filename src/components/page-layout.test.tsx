@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
-import { PageLayout } from "@/components/page-layout";
+import { PageIntroduction, PageLayout } from "@/components/page-layout";
 
 const { usePathname } = vi.hoisted(() => ({ usePathname: vi.fn() }));
 
@@ -35,4 +35,21 @@ it("renders sign out in app navigation", () => {
   expect(screen.getByRole("button", { name: "Sign out" })).toHaveClass(
     "hover:bg-muted",
   );
+});
+
+it("centers only introductions that opt in", () => {
+  const { rerender } = render(
+    <PageIntroduction title="Recommendations" centered>
+      Description
+    </PageIntroduction>,
+  );
+
+  expect(
+    screen.getByRole("heading", { name: "Recommendations" }).parentElement,
+  ).toHaveClass("mx-auto", "max-w-4xl", "text-center");
+
+  rerender(<PageIntroduction title="Import">Description</PageIntroduction>);
+  expect(
+    screen.getByRole("heading", { name: "Import" }).parentElement,
+  ).not.toHaveClass("text-center");
 });

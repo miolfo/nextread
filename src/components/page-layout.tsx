@@ -70,14 +70,20 @@ export function PageLayout({
 export function PageIntroduction({
   title,
   children,
+  centered = false,
 }: {
   title: string;
   children: ReactNode;
+  centered?: boolean;
 }) {
   return (
-    <div className="space-y-3">
+    <div
+      className={`space-y-3 ${centered ? "mx-auto max-w-4xl text-center" : ""}`}
+    >
       <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
-      <p className="max-w-3xl text-base leading-relaxed text-muted-foreground">
+      <p
+        className={`text-base leading-relaxed text-muted-foreground ${centered ? "" : "max-w-3xl"}`}
+      >
         {children}
       </p>
     </div>

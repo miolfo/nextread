@@ -88,30 +88,21 @@ With a `src` directory, the route files would be `src/app/page.tsx`, `src/app/ap
 ### Introduction
 
 - Heading: “Get book recommendations”.
-- Brief explanation of AI and randomized recommendation modes.
-- Two cards, side by side on sufficiently wide screens and stacked on smaller screens.
+- Brief explanation of the unified recommendation form.
+- One responsive form based on `designs/Next Read Finder Recommendations v2.png`.
 
-### AI Recommendations card
+### Unified recommendation form
 
-- Lucide icon and title.
-- Description of personalized suggestions based on reading history.
-- Labeled request textarea with an example request as placeholder text.
+- Optional prompt textarea, limited to 500 characters.
 - Recommendation count selector: **5, 10, 20**, initially set to **10**.
-- Optional focus selector:
-  - No specific focus (default).
+- Focus selector, initially **Balanced**:
+  - Balanced.
   - Similar to my favorite books.
   - Explore something different.
   - Discover new authors.
-- “Get AI Recommendations” button.
-
-### Randomized Recommendations card
-
-- Lucide shuffle icon and title.
-- Description explaining that suggestions will eventually use preferred genres and book reviews, with book data from Open Library.
-- Recommendation count selector: **5, 10, 20**, initially set to **10**.
 - Include-genres and exclude-genres multi-selection controls.
-- “Include lesser-known books” switch, initially enabled to match the reference.
-- “Generate Recommendations” button.
+- Import selector populated from the signed-in user's `import_runs` metadata, showing filename and upload date. Import records are persisted; the selected import is transient and is not persisted.
+- One “Generate recommendations” action.
 
 ### Fixed genre options
 
@@ -130,20 +121,21 @@ Start genre selections empty. Selected genres can be added and removed with stan
 
 ### Behavior
 
-- Textareas, selectors, genre controls, and switches work using transient local state.
-- Both recommendation buttons are enabled but do nothing. Use non-submit buttons so clicks do not navigate or refresh the page.
+- Recommendation controls and the selected import use transient local state; recommendation preferences and the selected import are not persisted.
+- The generate button is enabled but does nothing. Use a non-submit button so clicks do not navigate or refresh the page.
+- Import metadata query errors and empty import history show honest unavailable/empty states; do not use placeholder import records.
 - No loading states, toasts, generated lists, sample book results, or completion feedback.
 - No recommendation logic, AI calls, Open Library requests, or personalization calculations.
 - Refreshing the page resets all controls to their defaults.
 
 ### Likely shadcn components
 
-`Card`, `Label`, `Textarea`, `Select`, `Popover`, `Command`, `Badge`, `Switch`, `Button`, and `Separator` where appropriate.
+`Card`, `Label`, `Textarea`, `Select`, `Popover`, `Command`, `Badge`, `Button`, and `Separator` where appropriate.
 
 ## 9. Responsive design and accessibility
 
 - Support narrow mobile screens through desktop without horizontal page overflow.
-- Stack recommendation cards on mobile; preserve comfortable padding and readable control widths.
+- Keep the unified recommendation form usable on narrow mobile screens; preserve comfortable padding and readable control widths.
 - Allow selected genre chips and branding to wrap as needed.
 - Use semantic headings and visible, programmatically associated input labels.
 - Preserve keyboard navigation and visible focus indicators from shadcn.
@@ -159,7 +151,7 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - Results pages or sample recommendation results.
 - AI integration, Open Library integration, and recommendation algorithms.
 - Recommendation data integrations.
-- Persistence of recommendation preferences or other transient application state (import records are persisted as described above).
+- Persistence of recommendation preferences, selected import, or other transient application state (import records are persisted as described above).
 - Custom branding assets and a bespoke visual design system.
 - Connecting imported data to recommendations.
 
@@ -170,7 +162,7 @@ Start genre selections empty. Selected genres can be added and removed with stan
 3. Add only the shadcn primitives needed by the three pages.
 4. Establish minimal shared presentation and encapsulated responsive layout styles under `/components`.
 5. Build the splash and import pages.
-6. Build the two recommendation cards and transient form state.
+6. Build the unified recommendation form, transient controls, and import metadata selector.
 7. Check responsiveness, keyboard interactions, accessibility labels, and inert button behavior.
 8. Run available static checks and a production build; record outcomes.
 
@@ -183,7 +175,7 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - The import stepper and decorative illustration are absent.
 - All shadcn definitions reside under `src/components`, and consumers import only those local UI definitions via `@/components`.
 - Styling is encapsulated in components, apart from required global setup and theme tokens.
-- Recommendation controls work locally, and contradictory genre selections are prevented.
+- Unified recommendation controls work locally, import metadata is user-backed, and contradictory genre selections are prevented.
 - The import picker accepts arbitrary files; upload posts multipart data and returns the saved import ID.
 - Successful import query state fetches and reviews only the selected import's saved records; reset and continue actions work.
 - Review summaries and latest reads derive only from saved records; empty and query-error states do not show fabricated data.
@@ -198,8 +190,8 @@ Confirmed implementation choices:
 
 - Component directory: `src/components`, exposed through `@/components`.
 - Package manager: npm.
-- Initial recommendation count: **10** in both cards.
+- Initial recommendation count: **10**.
 - Included and excluded genres: initially empty.
-- Supabase email/password authentication protects `/app/*`; persistence and database tables remain future work.
+- Supabase email/password authentication protects `/app/*`. Import runs and book records are persisted; recommendation preferences and selected import are not persisted.
 
 The fixed genre list and focus options above remain the proposed options; no further decisions are required to begin the scoped implementation.
