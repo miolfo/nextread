@@ -49,6 +49,7 @@ export function RecommendationControls({
   const [selectedImport, setSelectedImport] = useState("");
   const [included, setIncluded] = useState<Genre[]>([]);
   const [excluded, setExcluded] = useState<Genre[]>([]);
+  const [pending, setPending] = useState(false);
   const selectedImportData = imports.find((item) => item.id === selectedImport);
 
   function toggleGenre(genre: Genre, target: "include" | "exclude") {
@@ -60,6 +61,22 @@ export function RecommendationControls({
         : [...current, genre],
     );
     setOther((current) => current.filter((item) => item !== genre));
+  }
+
+  async function recommend() {
+    if (pending || !selectedImport) return;
+    setPending(true);
+    try {
+      await fetch("/api/recommendations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ importId: selectedImport }),
+      });
+    } catch {
+      // The experiment deliberately has no user-facing results or error state.
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
@@ -225,9 +242,14 @@ export function RecommendationControls({
         </section>
       </CardContent>
       <CardFooter className="border-t p-5 sm:p-6">
-        <Button type="button" className="w-full">
+        <Button
+          type="button"
+          className="w-full"
+          disabled={pending || !selectedImport}
+          onClick={() => void recommend()}
+        >
           <Sparkles aria-hidden="true" />
-          Generate recommendations
+          {pending ? "Loading…" : "Generate recommendations"}
         </Button>
       </CardFooter>
     </Card>

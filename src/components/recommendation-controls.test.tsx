@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { RecommendationControls } from "@/components/recommendation-controls";
 
 const imports = [
@@ -109,16 +109,36 @@ describe("Recommendation controls", () => {
     },
   );
 
-  it("keeps the action enabled, non-submit, and inert", async () => {
+  it("requires an import, submits the selected ID, and prevents overlapping requests", async () => {
     const user = userEvent.setup();
-    const { container } = render(<RecommendationControls />);
-    const before = container.innerHTML;
+    let finish!: () => void;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = () => resolve(new Response(JSON.stringify({ ok: true })));
+        }),
+    );
+    render(<RecommendationControls imports={imports} />);
     const button = screen.getByRole("button", {
       name: "Generate recommendations",
     });
-    expect(button).toBeEnabled();
+    expect(button).toBeDisabled();
     expect(button).toHaveAttribute("type", "button");
+    await user.click(screen.getByRole("combobox", { name: "Import to use" }));
+    await user.click(
+      await screen.findByRole("option", { name: /library.csv/ }),
+    );
+    expect(button).toBeEnabled();
     await user.click(button);
-    expect(container.innerHTML).toBe(before);
+    expect(button).toBeDisabled();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/recommendations",
+      expect.objectContaining({ body: JSON.stringify({ importId: "new" }) }),
+    );
+    await user.click(button);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    finish();
+    await screen.findByRole("button", { name: "Generate recommendations" });
+    fetchMock.mockRestore();
   });
 });

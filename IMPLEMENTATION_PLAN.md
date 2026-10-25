@@ -122,10 +122,10 @@ Start genre selections empty. Selected genres can be added and removed with stan
 ### Behavior
 
 - Recommendation controls and the selected import use transient local state; recommendation preferences and the selected import are not persisted.
-- The generate button is enabled but does nothing. Use a non-submit button so clicks do not navigate or refresh the page.
+- The generate button requires a selected import and calls authenticated `POST /api/recommendations`; it is pending-disabled during the request. The experiment is local-development-only; production responds unavailable.
 - Import metadata query errors and empty import history show honest unavailable/empty states; do not use placeholder import records.
-- No loading states, toasts, generated lists, sample book results, or completion feedback.
-- No recommendation logic, AI calls, Open Library requests, or personalization calculations.
+- Pending button state only; no toasts, generated lists, sample book results, or completion feedback.
+- This local experiment processes only the selected import and logs bounded Open Library titles and subject names on the backend, without genre matching or per-book statuses. See `designs/RECOMMENDATIONS_ENGINE_PLAN.md` for parsing/privacy constraints. No AI, search, results UI, or persistence of derived data.
 - Refreshing the page resets all controls to their defaults.
 
 ### Likely shadcn components
@@ -153,7 +153,7 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - Recommendation data integrations.
 - Persistence of recommendation preferences, selected import, or other transient application state (import records are persisted as described above).
 - Custom branding assets and a bespoke visual design system.
-- Connecting imported data to recommendations.
+- Recommendation processing outside the explicitly approved local experiment.
 
 ## 11. Implementation sequence
 
@@ -179,7 +179,7 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - The import picker accepts arbitrary files; upload posts multipart data and returns the saved import ID.
 - Successful import query state fetches and reviews only the selected import's saved records; reset and continue actions work.
 - Review summaries and latest reads derive only from saved records; empty and query-error states do not show fabricated data.
-- Recommendation network requests and integrations remain out of scope.
+- Only the local experiment endpoint is permitted; it must be disabled in production and its console logs removed before deployment.
 - Check layouts at representative mobile, tablet, and desktop widths (for example, 375, 768, and 1440 pixels).
 - Run TypeScript checking, the scaffold's configured lint command, and a production build. If the scaffold does not provide linting, configure it explicitly rather than assuming `next lint` exists.
 - Inspect the browser console for runtime errors and manually test keyboard interaction.

@@ -13,6 +13,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
+import { GENRES, type Genre } from "@/lib/genres";
 import {
   Popover,
   PopoverContent,
@@ -20,17 +21,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-export const GENRES = [
-  "Science Fiction",
-  "Fantasy",
-  "Mystery",
-  "Thriller",
-  "Romance",
-  "Historical Fiction",
-  "Literary Fiction",
-  "Nonfiction",
-] as const;
-export type Genre = (typeof GENRES)[number];
+export { GENRES, type Genre } from "@/lib/genres";
 
 export function GenreSelector({
   label,
