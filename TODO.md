@@ -1,0 +1,6 @@
+- [ ] Normalize subjects and generate a base set that is used in queries.
+- [ ] Include user inputs in recommendations endpoint.
+- [ ] Fix sign out button.
+- [ ] Fix recommendations "import to use" input to match other inputs.
+- [ ] Dark mode.
+- [ ] Center all main headings in all views.

@@ -7,6 +7,10 @@
 - `src/lib` holds external integrations and cohesive shared/grouped functionality (for example, Supabase, Open Library, and recommendations); not every library module is an integration.
 - Use the root npm manifest and lockfile for application dependencies; `.opencode/package.json` belongs to separate agent tooling.
 
+## Documentation maintenance
+
+- After each change, review `IMPLEMENTATION_PLAN.md` and other relevant documentation for stale information. Update stale docs in the same change; if no updates are needed, report that documentation was checked and no update was needed.
+
 ## UI conventions
 
 - Keep routes as composition only. UI primitives live in `src/components/ui`; responsive presentation and styling belong under `src/components`, not route-level classes, inline styles, or page CSS modules. Import local components through `@/components` (`@/*` maps to `src/*`).
