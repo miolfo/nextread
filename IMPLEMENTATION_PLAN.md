@@ -22,13 +22,17 @@ This document describes the current demo behavior and acceptance scope.
 | URL | Purpose |
 | --- | --- |
 | `/` | Minimal splash page explaining the application. |
-| `/app/import` | Goodreads CSV import screen and saved-import review. |
+| `/app/import` | Goodreads CSV import screen. |
+| `/app/imports` | Saved-import review. |
 | `/app/login` | Email/password sign-in. |
 | `/app/recommendations` | Mock recommendation configuration screen. |
+| `/auth/callback` | Supabase authentication callback. |
+| `/api/import` | Goodreads CSV import endpoint. |
+| `/api/recommendations` | Local-only recommendation experiment endpoint. |
 
-All routes are independently accessible. The import and recommendation views do not need to link to each other, and recommendations must not require an import.
+The import and recommendation views are independently accessible without a navigation prerequisite. Recommendation generation itself requires an explicitly selected authenticated import.
 
-With a `src` directory, the route files would be `src/app/page.tsx`, `src/app/app/import/page.tsx`, and `src/app/app/recommendations/page.tsx`. The second `app` segment is intentional: it creates the requested `/app/...` URLs.
+Route sources are `src/app/page.tsx`, `src/app/app/login/page.tsx`, `src/app/app/(protected)/import/page.tsx`, `src/app/app/(protected)/imports/page.tsx`, `src/app/app/(protected)/recommendations/page.tsx`, `src/app/auth/callback/route.ts`, `src/app/api/import/route.ts`, and `src/app/api/recommendations/route.ts`. The `app` directory segment and protected route group produce the `/app/...` URLs.
 
 ## 4. Component and styling rules
 
@@ -125,7 +129,7 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - The generate button requires a selected import and calls authenticated `POST /api/recommendations`; it is pending-disabled during the request. The experiment is local-development-only; production responds unavailable.
 - Import metadata query errors and empty import history show honest unavailable/empty states; do not use placeholder import records.
 - Pending button state only; no toasts, generated lists, sample book results, or completion feedback.
-- This local experiment processes only the selected import and logs bounded Open Library titles and subject names on the backend, without genre matching or per-book statuses. See `designs/RECOMMENDATIONS_ENGINE_PLAN.md` for parsing/privacy constraints. No AI, search, results UI, or persistence of derived data.
+- This local experiment processes only the selected import through the bounded Open Library integration, without genre matching or per-book statuses. No AI, search, results UI, or persistence of derived data.
 - Refreshing the page resets all controls to their defaults.
 
 ### Likely shadcn components
@@ -149,7 +153,7 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - Browser-side file-content reading or validation.
 - Reading-history review or editing.
 - Results pages or sample recommendation results.
-- AI integration, Open Library integration, and recommendation algorithms.
+- AI integration, broader Open Library integration, and recommendation algorithms.
 - Recommendation data integrations.
 - Persistence of recommendation preferences, selected import, or other transient application state (import records are persisted as described above).
 - Custom branding assets and a bespoke visual design system.

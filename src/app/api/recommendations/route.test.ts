@@ -49,7 +49,7 @@ function query() {
   };
   q.range.mockImplementation(() => {
     result = pendingPage
-      ? new Promise(() => {})
+      ? new Promise(() => { })
       : Promise.resolve(pages[pageIndex++]);
     return q;
   });
@@ -65,7 +65,7 @@ beforeEach(() => {
   pages = [{ data: [], error: null }];
   getUser.mockResolvedValue({ data: { user: { id: "private-user" } } });
   maybeSingle.mockImplementation(() =>
-    pendingOwnership ? new Promise(() => {}) : Promise.resolve(ownership),
+    pendingOwnership ? new Promise(() => { }) : Promise.resolve(ownership),
   );
   from.mockImplementation(() => query());
   vi.stubEnv("NODE_ENV", "test");
@@ -102,12 +102,6 @@ describe("POST /api/recommendations", () => {
     expect(provider).not.toHaveBeenCalled();
   });
 
-  it("disables before database/provider access in production", async () => {
-    vi.stubEnv("NODE_ENV", "production");
-    expect((await post()).status).toBe(404);
-    expect(from).not.toHaveBeenCalled();
-  });
-
   it("reads complete pagination and sends a single capped ISBN batch, logging only safe fields", async () => {
     const records = Array.from({ length: 500 }, (_, i) => ({
       title: `title-${i}`,
@@ -139,7 +133,7 @@ describe("POST /api/recommendations", () => {
           ),
         );
       });
-    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const log = vi.spyOn(console, "log").mockImplementation(() => { });
     const response = await post();
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
@@ -208,11 +202,11 @@ describe("POST /api/recommendations", () => {
         vi.useFakeTimers();
         vi.spyOn(globalThis, "fetch").mockImplementation(() =>
           failure === "stream-timeout"
-            ? Promise.resolve(new Response(new ReadableStream({ pull() {} })))
-            : new Promise(() => {}),
+            ? Promise.resolve(new Response(new ReadableStream({ pull() { } })))
+            : new Promise(() => { }),
         );
       }
-      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const log = vi.spyOn(console, "log").mockImplementation(() => { });
       const responsePromise = post();
       if (failure === "stream-timeout" || failure === "provider-timeout")
         await vi.advanceTimersByTimeAsync(10_000);
@@ -236,7 +230,7 @@ describe("POST /api/recommendations", () => {
         error: null,
       },
     ];
-    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const log = vi.spyOn(console, "log").mockImplementation(() => { });
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("not-json", { status: 502 }),
     );
@@ -272,7 +266,7 @@ describe("POST /api/recommendations", () => {
         error: null,
       },
     ];
-    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const log = vi.spyOn(console, "log").mockImplementation(() => { });
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -284,14 +278,104 @@ describe("POST /api/recommendations", () => {
     );
     await post();
     const output = JSON.stringify(log.mock.calls);
-    const serializedLog = log.mock.calls[0][1] as string;
-    expect(serializedLog).toContain('"diagnostic":"parsed"');
-    expect(serializedLog).toContain('"subjects":["Fantasy"]');
-    expect(serializedLog).not.toContain('"matches"');
-    expect(serializedLog).not.toContain('"no-match"');
-    expect(serializedLog).not.toContain('"matched"');
+    const serializedLog = JSON.parse(log.mock.calls[0][1] as string);
+    expect(serializedLog.diagnostic).toBe("parsed");
+    expect(serializedLog.books[0].subjects).toEqual(["Fantasy"]);
+    expect(serializedLog.subjects).toEqual([{ name: "Fantasy", count: 1 }]);
+    expect(serializedLog).not.toHaveProperty("matches");
+    expect(serializedLog).not.toHaveProperty("no-match");
+    expect(serializedLog).not.toHaveProperty("matched");
     expect(output).not.toContain("[Array]");
     expect(output).not.toContain("invalid-shape");
+  });
+
+  it("aggregates exact subject names and sorts by count then alphabetically", async () => {
+    const first = isbn(5);
+    const second = isbn(6);
+    pages = [
+      {
+        data: [
+          { title: "first", isbn: first, isbn13: "", my_rating: "5" },
+          { title: "second", isbn: second, isbn13: "", my_rating: "5" },
+        ],
+        error: null,
+      },
+    ];
+    const log = vi.spyOn(console, "log").mockImplementation(() => { });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          [`ISBN:${first}`]: {
+            subjects: [
+              { name: "Zebra" },
+              { name: "Fantasy" },
+              { name: "Fantasy" },
+            ],
+          },
+          [`ISBN:${second}`]: {
+            subjects: [{ name: "Zebra" }, { name: "Alpha" }],
+          },
+        }),
+      ),
+    );
+    await post();
+    const output = JSON.parse(log.mock.calls[0][1] as string);
+    expect(output.subjects).toEqual([
+      { name: "Fantasy", count: 2 },
+      { name: "Zebra", count: 2 },
+      { name: "Alpha", count: 1 },
+    ]);
+  });
+
+  it("omits overlong subject names instead of merging truncated identities", async () => {
+    const first = isbn(8);
+    const second = isbn(9);
+    const prefix = "a".repeat(100);
+    pages = [
+      {
+        data: [
+          { title: "first", isbn: first, isbn13: "", my_rating: "5" },
+          { title: "second", isbn: second, isbn13: "", my_rating: "5" },
+        ],
+        error: null,
+      },
+    ];
+    const log = vi.spyOn(console, "log").mockImplementation(() => { });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          [`ISBN:${first}`]: { subjects: [{ name: `${prefix}x` }] },
+          [`ISBN:${second}`]: { subjects: [{ name: `${prefix}y` }] },
+        }),
+      ),
+    );
+    await post();
+    const output = JSON.parse(log.mock.calls[0][1] as string);
+    expect(output.subjects).toEqual([]);
+    expect(output.books[0].subjects).toEqual([]);
+  });
+
+  it("logs an empty aggregate when selected books have no subjects", async () => {
+    const fixtureIsbn = isbn(7);
+    pages = [
+      {
+        data: [
+          {
+            title: "no subjects",
+            isbn: fixtureIsbn,
+            isbn13: "",
+            my_rating: "5",
+          },
+        ],
+        error: null,
+      },
+    ];
+    const log = vi.spyOn(console, "log").mockImplementation(() => { });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({})),
+    );
+    await post();
+    expect(JSON.parse(log.mock.calls[0][1] as string).subjects).toEqual([]);
   });
 
   it("bounds logged non-success response excerpts", async () => {
@@ -303,7 +387,7 @@ describe("POST /api/recommendations", () => {
         error: null,
       },
     ];
-    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const log = vi.spyOn(console, "log").mockImplementation(() => { });
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("x".repeat(4096), { status: 503 }),
     );

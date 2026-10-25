@@ -3,9 +3,8 @@
 ## Scope and structure
 
 - `IMPLEMENTATION_PLAN.md` defines the current demo scope; the mockup is a content/layout reference, not a pixel-perfect styling target.
-- Recommendation's Generate button is an approved local-only experiment: it requires an explicitly selected import and calls authenticated `POST /api/recommendations`; production must keep the endpoint disabled. It has no results UI, AI, search, derived persistence, or user-facing feedback. Remove backend console logging before deployment. Upload remains within its existing scope.
-- Recommendation preferences are transient local state. Keep AI/random counts independent and included/excluded genres mutually exclusive.
 - `src/app/app/` is intentional: it produces `/app/import` and `/app/recommendations`. Both routes must work without an import or navigation prerequisite.
+- `src/lib` holds external integrations and cohesive shared/grouped functionality (for example, Supabase, Open Library, and recommendations); not every library module is an integration.
 - Use the root npm manifest and lockfile for application dependencies; `.opencode/package.json` belongs to separate agent tooling.
 
 ## UI conventions

@@ -143,22 +143,36 @@ export async function lookupBookSubjects(
           if (!subject || typeof subject !== "object" || !("name" in subject))
             return [];
           const name = subject.name;
-          return typeof name === "string" ? [name.slice(0, 100)] : [];
+          return typeof name === "string" && name.length <= 100 ? [name] : [];
         })
         .slice(0, 20);
       return { title: book.title, subjects };
     });
+    const subjectCounts = new Map<string, number>();
+    for (const book of logs) {
+      for (const name of book.subjects) {
+        subjectCounts.set(name, (subjectCounts.get(name) ?? 0) + 1);
+      }
+    }
+    const subjects = [...subjectCounts]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
     console.log(
       "Recommendation experiment",
-      JSON.stringify({
-        status: "complete",
-        url: url.toString(),
-        responseStatus,
-        diagnostic: "parsed",
-        responseKeys,
-        responseKeyCount,
-        books: logs,
-      }),
+      JSON.stringify(
+        {
+          status: "complete",
+          url: url.toString(),
+          responseStatus,
+          diagnostic: "parsed",
+          responseKeys,
+          responseKeyCount,
+          books: logs,
+          subjects,
+        },
+        null,
+        2,
+      ),
     );
   } catch {
     if (diagnostic === "network-error" && controller.signal.aborted)

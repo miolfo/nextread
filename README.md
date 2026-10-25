@@ -24,14 +24,9 @@ before they can sign in. Set the same two public environment variables in Vercel
 
 Visit `http://localhost:3000`; `/` is public and app routes require sign-in.
 
-The import screen accepts any selected file and posts it to a local mock endpoint,
-which logs its filename and returns a fixed import ID. The recommendation experiment
-requires a selected authenticated import and sends one bounded ISBN batch to Open
-Library. It runs only outside production, returns no reading/recommendation data to
-the browser, and logs a minimal sample in the local operator terminal. History-derived
-titles and subjects can be sensitive; do not expose terminal output or assume any
-platform retention policy. No intentional retention is added. Remove logging before
-deployment. No AI, results UI, search, or derived persistence is included.
+The import screen posts the selected CSV to the server, where it is parsed and the
+import and its book rows are persisted in Supabase. Recommendations require an
+explicitly selected import belonging to the authenticated user. 
 
 ## Verification
 
