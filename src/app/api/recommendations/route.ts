@@ -1,10 +1,23 @@
 import { candidateBooks, type Book } from "@/lib/recommendations-engine";
 import { loadImportBooks } from "@/lib/recommendations/import-books";
 import { lookupBookSubjects } from "@/lib/open-library/books-api";
+import { persistSubjectCandidates } from "@/lib/subjects/subject-candidates";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
-
+  const logFailure = (phase: string, error?: unknown) => {
+    const code =
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      typeof error.code === "string"
+        ? error.code.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 32)
+        : undefined;
+    console.error("Recommendation experiment unavailable", {
+      phase,
+      ...(code ? { code } : {}),
+    });
+  };
   const supabase = await createClient();
   const {
     data: { user },
@@ -20,8 +33,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid request" }, { status: 400 });
   const deadline = Date.now() + 10_000;
   const loaded = await loadImportBooks(supabase, importId, deadline);
-  if (loaded.status === "unavailable")
+  if (loaded.status === "unavailable") {
+    logFailure("import-books");
     return Response.json({ error: "Unavailable" }, { status: 503 });
+  }
   if (loaded.status === "missing")
     return Response.json({ error: "Import unavailable" }, { status: 404 });
   const books: Book[] = loaded.books;
@@ -39,6 +54,22 @@ export async function POST(request: Request) {
     });
     return Response.json({ ok: true });
   }
-  await lookupBookSubjects(selected, deadline);
+  let booksWithSubjects;
+  try {
+    booksWithSubjects = await lookupBookSubjects(selected, deadline);
+  } catch (error) {
+    logFailure("open-library", error);
+    return Response.json({ error: "Unavailable" }, { status: 503 });
+  }
+  try {
+    await persistSubjectCandidates(booksWithSubjects, supabase, deadline);
+    console.log(
+      "Recommendation experiment",
+      JSON.stringify({ status: "complete" }),
+    );
+  } catch (error) {
+    logFailure("subject-candidates", error);
+    return Response.json({ error: "Unavailable" }, { status: 503 });
+  }
   return Response.json({ ok: true });
 }

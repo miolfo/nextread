@@ -1,16 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/recommendations/route";
 
-const { getUser, from, maybeSingle, abortSignal } = vi.hoisted(() => ({
-  getUser: vi.fn(),
-  from: vi.fn(),
-  maybeSingle: vi.fn(),
-  abortSignal: vi.fn((signal: AbortSignal) => {
-    void signal;
+const { getUser, from, maybeSingle, abortSignal, rpc, rpcSignals } = vi.hoisted(
+  () => ({
+    getUser: vi.fn(),
+    from: vi.fn(),
+    maybeSingle: vi.fn(),
+    rpc: vi.fn(),
+    rpcSignals: [] as AbortSignal[],
+    abortSignal: vi.fn((signal: AbortSignal) => {
+      void signal;
+    }),
   }),
-}));
+);
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: async () => ({ auth: { getUser }, from }),
+  createClient: async () => ({ auth: { getUser }, from, rpc }),
 }));
 
 let ownership: unknown = {
@@ -49,7 +53,7 @@ function query() {
   };
   q.range.mockImplementation(() => {
     result = pendingPage
-      ? new Promise(() => { })
+      ? new Promise(() => {})
       : Promise.resolve(pages[pageIndex++]);
     return q;
   });
@@ -57,6 +61,7 @@ function query() {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  rpcSignals.length = 0;
   vi.useRealTimers();
   pageIndex = 0;
   pendingPage = false;
@@ -64,8 +69,20 @@ beforeEach(() => {
   ownership = { data: { id: importId }, error: null };
   pages = [{ data: [], error: null }];
   getUser.mockResolvedValue({ data: { user: { id: "private-user" } } });
+  rpc.mockImplementation(() => {
+    const result = Promise.resolve({ error: null }) as Promise<{
+      error: unknown;
+    }> & {
+      abortSignal: (signal: AbortSignal) => Promise<{ error: unknown }>;
+    };
+    result.abortSignal = (signal) => {
+      rpcSignals.push(signal);
+      return result;
+    };
+    return result;
+  });
   maybeSingle.mockImplementation(() =>
-    pendingOwnership ? new Promise(() => { }) : Promise.resolve(ownership),
+    pendingOwnership ? new Promise(() => {}) : Promise.resolve(ownership),
   );
   from.mockImplementation(() => query());
   vi.stubEnv("NODE_ENV", "test");
@@ -82,7 +99,6 @@ const post = (body: unknown = { importId }) =>
       body: JSON.stringify(body),
     }),
   );
-
 describe("POST /api/recommendations", () => {
   it("rejects unauthenticated requests and malformed/missing selections", async () => {
     getUser.mockResolvedValue({ data: { user: null } });
@@ -133,7 +149,7 @@ describe("POST /api/recommendations", () => {
           ),
         );
       });
-    const log = vi.spyOn(console, "log").mockImplementation(() => { });
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
     const response = await post();
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
@@ -146,12 +162,12 @@ describe("POST /api/recommendations", () => {
     expect(url.searchParams.get("format")).toBe("json");
     expect(abortSignal).toHaveBeenCalled();
     const logged = JSON.stringify(log.mock.calls);
-    expect(logged).toContain("Fantasy");
+    expect(logged).not.toContain("Fantasy");
     expect(logged).not.toContain("Private");
     expect(logged).not.toContain("private-user");
     expect(logged).not.toContain(importId);
     expect(logged).not.toContain("my_rating");
-    expect(logged).toContain("https://openlibrary.org/api/books?");
+    expect(logged).not.toContain("https://openlibrary.org/api/books?");
     expect(logged).toContain("responseStatus");
     expect(logged).toContain("parsed");
   });
@@ -202,11 +218,11 @@ describe("POST /api/recommendations", () => {
         vi.useFakeTimers();
         vi.spyOn(globalThis, "fetch").mockImplementation(() =>
           failure === "stream-timeout"
-            ? Promise.resolve(new Response(new ReadableStream({ pull() { } })))
-            : new Promise(() => { }),
+            ? Promise.resolve(new Response(new ReadableStream({ pull() {} })))
+            : new Promise(() => {}),
         );
       }
-      const log = vi.spyOn(console, "log").mockImplementation(() => { });
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
       const responsePromise = post();
       if (failure === "stream-timeout" || failure === "provider-timeout")
         await vi.advanceTimersByTimeAsync(10_000);
@@ -214,7 +230,7 @@ describe("POST /api/recommendations", () => {
       expect(await response.json()).toEqual({ ok: true });
       expect(JSON.stringify(log.mock.calls)).not.toContain("secret redirect");
       expect(JSON.stringify(log.mock.calls)).not.toContain(importId);
-      expect(JSON.stringify(log.mock.calls)).toContain(
+      expect(JSON.stringify(log.mock.calls)).not.toContain(
         "https://openlibrary.org/api/books?",
       );
       expect(JSON.stringify(log.mock.calls)).toContain("responseStatus");
@@ -230,14 +246,14 @@ describe("POST /api/recommendations", () => {
         error: null,
       },
     ];
-    const log = vi.spyOn(console, "log").mockImplementation(() => { });
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("not-json", { status: 502 }),
     );
     await post();
     expect(JSON.stringify(log.mock.calls)).toContain('"responseStatus":502');
     expect(JSON.stringify(log.mock.calls)).toContain("http-error");
-    expect(JSON.stringify(log.mock.calls)).toContain("not-json");
+    expect(JSON.stringify(log.mock.calls)).not.toContain("not-json");
 
     log.mockClear();
     pages = [
@@ -266,22 +282,28 @@ describe("POST /api/recommendations", () => {
         error: null,
       },
     ];
-    const log = vi.spyOn(console, "log").mockImplementation(() => { });
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          [`ISBN:${fixtureIsbn}`]: {
-            subjects: [{ name: "Fantasy", url: "/subjects/fantasy" }],
-          },
-        }),
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            [`ISBN:${fixtureIsbn}`]: {
+              subjects: [{ name: "Fantasy", url: "/subjects/fantasy" }],
+            },
+          }),
+        ),
       ),
     );
     await post();
     const output = JSON.stringify(log.mock.calls);
-    const serializedLog = JSON.parse(log.mock.calls[0][1] as string);
-    expect(serializedLog.diagnostic).toBe("parsed");
-    expect(serializedLog.books[0].subjects).toEqual(["Fantasy"]);
-    expect(serializedLog.subjects).toEqual([{ name: "Fantasy", count: 1 }]);
+    const serializedLog = JSON.parse(
+      log.mock.calls.find((call) => typeof call[1] === "string")![1] as string,
+    );
+    expect(serializedLog).not.toHaveProperty("books");
+    expect(output).not.toContain("Fantasy");
+    expect(rpc.mock.calls[0][1].p_candidates).toEqual([
+      { subject: "Fantasy", count: 1 },
+    ]);
     expect(serializedLog).not.toHaveProperty("matches");
     expect(serializedLog).not.toHaveProperty("no-match");
     expect(serializedLog).not.toHaveProperty("matched");
@@ -301,33 +323,89 @@ describe("POST /api/recommendations", () => {
         error: null,
       },
     ];
-    const log = vi.spyOn(console, "log").mockImplementation(() => { });
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          [`ISBN:${first}`]: {
-            subjects: [
-              { name: "Zebra" },
-              { name: "Fantasy" },
-              { name: "Fantasy" },
-            ],
-          },
-          [`ISBN:${second}`]: {
-            subjects: [{ name: "Zebra" }, { name: "Alpha" }],
-          },
-        }),
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            [`ISBN:${first}`]: {
+              subjects: [
+                { name: "Zebra" },
+                { name: "Fantasy" },
+                { name: "Fantasy" },
+              ],
+            },
+            [`ISBN:${second}`]: {
+              subjects: [{ name: "Zebra" }, { name: "Alpha" }],
+            },
+          }),
+        ),
       ),
     );
     await post();
-    const output = JSON.parse(log.mock.calls[0][1] as string);
-    expect(output.subjects).toEqual([
-      { name: "Fantasy", count: 2 },
-      { name: "Zebra", count: 2 },
-      { name: "Alpha", count: 1 },
+    const output = { candidates: rpc.mock.calls[0][1].p_candidates };
+    expect(output.candidates).toEqual([
+      { subject: "Zebra", count: 2 },
+      { subject: "Alpha", count: 1 },
+      { subject: "Fantasy", count: 1 },
     ]);
+    expect(rpc).toHaveBeenCalledOnce();
+    pageIndex = 0;
+    await post();
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(rpc.mock.calls[1][1]).toEqual(rpc.mock.calls[0][1]);
   });
 
-  it("omits overlong subject names instead of merging truncated identities", async () => {
+  it("returns unavailable when candidate persistence fails or stalls", async () => {
+    pages = [
+      {
+        data: [{ title: "book", isbn: isbn(11), isbn13: "", my_rating: "5" }],
+        error: null,
+      },
+    ];
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            [`ISBN:${isbn(11)}`]: { subjects: [{ name: "Fantasy" }] },
+          }),
+        ),
+      ),
+    );
+    rpc.mockImplementationOnce(() => {
+      const result = Promise.resolve({
+        error: { message: "db failure" },
+      }) as Promise<{ error: unknown }> & {
+        abortSignal: (signal: AbortSignal) => Promise<{ error: unknown }>;
+      };
+      result.abortSignal = (signal) => {
+        rpcSignals.push(signal);
+        return result;
+      };
+      return result;
+    });
+    expect((await post()).status).toBe(503);
+
+    vi.useFakeTimers();
+    pageIndex = 0;
+    rpcSignals.length = 0;
+    rpc.mockImplementationOnce(() => {
+      const result = new Promise(() => {}) as Promise<{ error: unknown }> & {
+        abortSignal: (signal: AbortSignal) => Promise<{ error: unknown }>;
+      };
+      result.abortSignal = (signal) => {
+        rpcSignals.push(signal);
+        return result;
+      };
+      return result;
+    });
+    const pending = post();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect((await pending).status).toBe(503);
+    expect(rpcSignals).toHaveLength(1);
+    expect(rpcSignals[0].aborted).toBe(true);
+  });
+
+  it("preserves long subject names exactly and persists candidates", async () => {
     const first = isbn(8);
     const second = isbn(9);
     const prefix = "a".repeat(100);
@@ -340,7 +418,6 @@ describe("POST /api/recommendations", () => {
         error: null,
       },
     ];
-    const log = vi.spyOn(console, "log").mockImplementation(() => { });
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -350,9 +427,14 @@ describe("POST /api/recommendations", () => {
       ),
     );
     await post();
-    const output = JSON.parse(log.mock.calls[0][1] as string);
-    expect(output.subjects).toEqual([]);
-    expect(output.books[0].subjects).toEqual([]);
+    const output = { candidates: rpc.mock.calls[0][1].p_candidates };
+    expect(output.candidates).toEqual([
+      { subject: `${prefix}x`, count: 1 },
+      { subject: `${prefix}y`, count: 1 },
+    ]);
+    expect(rpc).toHaveBeenCalledWith("record_subject_candidates", {
+      p_candidates: output.candidates,
+    });
   });
 
   it("logs an empty aggregate when selected books have no subjects", async () => {
@@ -370,15 +452,14 @@ describe("POST /api/recommendations", () => {
         error: null,
       },
     ];
-    const log = vi.spyOn(console, "log").mockImplementation(() => { });
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({})),
     );
     await post();
-    expect(JSON.parse(log.mock.calls[0][1] as string).subjects).toEqual([]);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("bounds logged non-success response excerpts", async () => {
+  it("does not log non-success response bodies", async () => {
     pages = [
       {
         data: [
@@ -387,15 +468,104 @@ describe("POST /api/recommendations", () => {
         error: null,
       },
     ];
-    const log = vi.spyOn(console, "log").mockImplementation(() => { });
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("x".repeat(4096), { status: 503 }),
     );
     await post();
     const output = JSON.stringify(log.mock.calls);
-    const excerpt = output.match(/"bodyExcerpt":"(x+)"/)?.[1];
-    expect(excerpt).toHaveLength(512);
+    expect(output).not.toContain("x".repeat(20));
     expect(output).not.toContain("private-user");
     expect(output).not.toContain(importId);
+  });
+
+  it("logs RPC codes with safe phase only, retaining no error or payload details", async () => {
+    pages = [
+      {
+        data: [{ title: "book", isbn: isbn(12), isbn13: "", my_rating: "5" }],
+        error: null,
+      },
+    ];
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          [`ISBN:${isbn(12)}`]: { subjects: [{ name: "secret subject" }] },
+        }),
+      ),
+    );
+    const diagnostic = vi.spyOn(console, "error").mockImplementation(() => {});
+    rpc.mockImplementationOnce(() => ({
+      abortSignal: () =>
+        Promise.resolve({
+          error: {
+            code: "42803",
+            message: "failing row contains secret subject",
+            details: "private-user detail",
+          },
+        }),
+    }));
+    const response = await post();
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "Unavailable" });
+    expect(diagnostic).toHaveBeenCalledWith(
+      "Recommendation experiment unavailable",
+      {
+        phase: "subject-candidates",
+        code: "42803",
+      },
+    );
+    expect(JSON.stringify(diagnostic.mock.calls)).not.toContain(
+      "secret subject",
+    );
+    expect(JSON.stringify(diagnostic.mock.calls)).not.toContain("private-user");
+    expect(JSON.stringify(diagnostic.mock.calls)).not.toContain("failing row");
+    expect(JSON.stringify(diagnostic.mock.calls)).not.toContain(importId);
+  });
+
+  it("logs import failures and persistence timeouts with safe phase and code", async () => {
+    const diagnostic = vi.spyOn(console, "error").mockImplementation(() => {});
+    pages = [{ data: null, error: { message: "private import error" } }];
+    expect((await post()).status).toBe(503);
+    expect(diagnostic).toHaveBeenCalledWith(
+      "Recommendation experiment unavailable",
+      {
+        phase: "import-books",
+      },
+    );
+
+    pageIndex = 0;
+    pages = [
+      {
+        data: [{ title: "book", isbn: isbn(13), isbn13: "", my_rating: "5" }],
+        error: null,
+      },
+    ];
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          [`ISBN:${isbn(13)}`]: { subjects: [{ name: "private subject" }] },
+        }),
+      ),
+    );
+    vi.useFakeTimers();
+    rpc.mockImplementationOnce(() => ({
+      abortSignal: () => new Promise(() => {}),
+    }));
+    const pending = post();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect((await pending).status).toBe(503);
+    expect(diagnostic).toHaveBeenCalledWith(
+      "Recommendation experiment unavailable",
+      {
+        phase: "subject-candidates",
+        code: "SUBJECT_PERSISTENCE_TIMEOUT",
+      },
+    );
+    expect(JSON.stringify(diagnostic.mock.calls)).not.toContain(
+      "private subject",
+    );
+    expect(JSON.stringify(diagnostic.mock.calls)).not.toContain(
+      "private import error",
+    );
   });
 });

@@ -129,7 +129,8 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - The generate button requires a selected import and calls authenticated `POST /api/recommendations`; it is pending-disabled during the request. The experiment is local-development-only; production responds unavailable.
 - Import metadata query errors and empty import history show honest unavailable/empty states; do not use placeholder import records.
 - Pending button state only; no toasts, generated lists, sample book results, or completion feedback.
-- This local experiment processes only the selected import through the bounded Open Library integration, without genre matching or per-book statuses. No AI, search, results UI, or persistence of derived data.
+- This local experiment processes only the selected import through the bounded Open Library integration, without genre matching or per-book statuses. Authenticated requests persist exact Open Library subject strings and per-book observation counts to private `subject_candidate` via an atomic restricted database operation. The separate private `subject` table is curated and untouched. No AI, search, results UI, promotion automation, or frontend selection change.
+- The initial subject-candidate migration has an incremental follow-up migration (`20261027000000_fix_record_subject_candidates_grouping.sql`) correcting the aggregate expression; deployments that already ran the initial migration must apply the follow-up. Unavailable endpoint failures receive only a phase and sanitized database error code in server logs; SQL messages and subject payloads are never logged.
 - Refreshing the page resets all controls to their defaults.
 
 ### Likely shadcn components

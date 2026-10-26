@@ -1,5 +1,7 @@
 import type { Candidate } from "@/lib/recommendations-engine";
 
+export type BookSubjects = { title: string; subjects: string[] };
+
 function beforeDeadline<T>(
   operation: PromiseLike<T>,
   deadline: number,
@@ -22,7 +24,7 @@ function beforeDeadline<T>(
 export async function lookupBookSubjects(
   selected: Candidate[],
   deadline: number,
-): Promise<void> {
+): Promise<BookSubjects[]> {
   const url = new URL("https://openlibrary.org/api/books");
   url.searchParams.set(
     "bibkeys",
@@ -33,14 +35,12 @@ export async function lookupBookSubjects(
   const controller = new AbortController();
   let responseStatus: number | undefined;
   let diagnostic = "network-error";
-  let responseKeys: string[] | undefined;
   let responseKeyCount: number | undefined;
   let entryIndex: number | undefined;
   const logBatch = (status: string, extra: Record<string, unknown> = {}) => {
     try {
       console.log("Recommendation experiment", {
         status,
-        url: url.toString(),
         responseStatus: responseStatus ?? null,
         diagnostic,
         ...extra,
@@ -66,31 +66,20 @@ export async function lookupBookSubjects(
     responseStatus = response.status;
     if (!response.ok) {
       diagnostic = "http-error";
-      const contentType = response.headers.get("content-type");
-      let bodySummary: string | undefined;
       try {
         const reader = response.body?.getReader();
         if (reader) {
-          const { value } = await beforeDeadline(
-            reader.read(),
-            deadline,
-            () => {
-              controller.abort();
-              void reader.cancel();
-            },
-          );
-          if (value)
-            bodySummary = new TextDecoder().decode(value.slice(0, 512));
+          await beforeDeadline(reader.read(), deadline, () => {
+            controller.abort();
+            void reader.cancel();
+          });
           await reader.cancel();
         }
       } catch {
         /* status remains useful if error body stalls */
       }
-      logBatch("batch-failure", {
-        contentType,
-        ...(bodySummary ? { bodyExcerpt: bodySummary } : {}),
-      });
-      return;
+      logBatch("batch-failure");
+      return [];
     }
     diagnostic = "missing-body";
     const reader = response.body?.getReader();
@@ -126,7 +115,6 @@ export async function lookupBookSubjects(
     if (!payload || typeof payload !== "object" || Array.isArray(payload))
       throw new Error();
     const record = payload as Record<string, unknown>;
-    responseKeys = Object.keys(record).slice(0, 10);
     responseKeyCount = Object.keys(record).length;
     diagnostic = "processing-entries";
     const logs = selected.map((book) => {
@@ -138,46 +126,40 @@ export async function lookupBookSubjects(
       const raw = (entry as { subjects?: unknown }).subjects;
       if (!Array.isArray(raw)) return { title: book.title, subjects: [] };
       diagnostic = "normalizing-subjects";
-      const subjects = raw
-        .flatMap((subject) => {
-          if (!subject || typeof subject !== "object" || !("name" in subject))
-            return [];
-          const name = subject.name;
-          return typeof name === "string" && name.length <= 100 ? [name] : [];
-        })
-        .slice(0, 20);
+      const subjects = [
+        ...new Set(
+          raw.flatMap((subject) => {
+            if (!subject || typeof subject !== "object" || !("name" in subject))
+              return [];
+            const name = subject.name;
+            return typeof name === "string" && name.trim().length > 0
+              ? [name]
+              : [];
+          }),
+        ),
+      ];
       return { title: book.title, subjects };
     });
-    const subjectCounts = new Map<string, number>();
-    for (const book of logs) {
-      for (const name of book.subjects) {
-        subjectCounts.set(name, (subjectCounts.get(name) ?? 0) + 1);
-      }
-    }
-    const subjects = [...subjectCounts]
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
     console.log(
       "Recommendation experiment",
       JSON.stringify(
         {
           status: "complete",
-          url: url.toString(),
           responseStatus,
           diagnostic: "parsed",
-          responseKeys,
           responseKeyCount,
-          books: logs,
-          subjects,
+          bookCount: logs.length,
         },
         null,
         2,
       ),
     );
+    return logs;
   } catch {
     if (diagnostic === "network-error" && controller.signal.aborted)
       diagnostic = "timeout";
-    logBatch("batch-failure", { responseKeys, responseKeyCount, entryIndex });
+    logBatch("batch-failure", { responseKeyCount, entryIndex });
+    return [];
   } finally {
     clearTimeout(timer);
   }

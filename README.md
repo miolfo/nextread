@@ -26,7 +26,9 @@ Visit `http://localhost:3000`; `/` is public and app routes require sign-in.
 
 The import screen posts the selected CSV to the server, where it is parsed and the
 import and its book rows are persisted in Supabase. Recommendations require an
-explicitly selected import belonging to the authenticated user. 
+explicitly selected import belonging to the authenticated user. The recommendation
+experiment records exact Open Library subject strings in a private candidate table;
+it does not alter the curated subject list.
 
 ## Verification
 
