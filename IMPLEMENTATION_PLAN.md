@@ -26,11 +26,12 @@ This document describes the current demo behavior and acceptance scope.
 | `/app/imports` | Saved-import review. |
 | `/app/login` | Email/password sign-in. |
 | `/app/recommendations` | Mock recommendation configuration screen. |
+| `/app/admin/subjects` | Read-only admin view of subject candidates. |
 | `/auth/callback` | Supabase authentication callback. |
 | `/api/import` | Goodreads CSV import endpoint. |
 | `/api/recommendations` | Local-only recommendation experiment endpoint. |
 
-The import and recommendation views are independently accessible without a navigation prerequisite. Recommendation generation itself requires an explicitly selected authenticated import.
+The import and recommendation views are independently accessible without a navigation prerequisite. Recommendation generation itself requires an explicitly selected authenticated import. The admin subject page requires a verified user whose trusted `app_metadata.is_admin` is boolean `true`.
 
 Route sources are `src/app/page.tsx`, `src/app/app/login/page.tsx`, `src/app/app/(protected)/import/page.tsx`, `src/app/app/(protected)/imports/page.tsx`, `src/app/app/(protected)/recommendations/page.tsx`, `src/app/auth/callback/route.ts`, `src/app/api/import/route.ts`, and `src/app/api/recommendations/route.ts`. The `app` directory segment and protected route group produce the `/app/...` URLs.
 
@@ -132,6 +133,13 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - This local experiment processes only the selected import through the bounded Open Library integration, without genre matching or per-book statuses. Authenticated requests persist exact Open Library subject strings and per-book observation counts to private `subject_candidate` via an atomic restricted database operation. The separate private `subject` table is curated and untouched. No AI, search, results UI, promotion automation, or frontend selection change.
 - The initial subject-candidate migration has an incremental follow-up migration (`20261027000000_fix_record_subject_candidates_grouping.sql`) correcting the aggregate expression; deployments that already ran the initial migration must apply the follow-up. Unavailable endpoint failures receive only a phase and sanitized database error code in server logs; SQL messages and subject payloads are never logged.
 - Refreshing the page resets all controls to their defaults.
+
+### Admin subject candidates — `/app/admin/subjects`
+
+- Direct URL only; no navigation link. Requires trusted `app_metadata.is_admin: true`.
+- Read all `subject_candidate` rows in batches, ordered by count descending then exact subject ascending. Show Candidate, Occurrences, Promoted, and total count with honest empty/error states.
+- Promoted is a disabled, unchecked placeholder and implies no membership. No search, sorting, pagination, or write actions.
+- Apply migration `20261028000000_enable_admin_subject_candidate_read.sql` for authenticated SELECT protected by admin-only RLS. The curated `subject` table remains private. Set admin through trusted Supabase Auth Admin/API app_metadata, never user_metadata. JWT claim refresh/expiry can delay revocation; never use a service-role key in application code.
 
 ### Likely shadcn components
 

@@ -30,6 +30,13 @@ explicitly selected import belonging to the authenticated user. The recommendati
 experiment records exact Open Library subject strings in a private candidate table;
 it does not alter the curated subject list.
 
+`/app/admin/subjects` is a direct URL, read-only candidate listing for users with
+trusted `app_metadata.is_admin: true`. Apply
+`supabase/migrations/20261028000000_enable_admin_subject_candidate_read.sql` before
+using it. Set the flag through Supabase Auth Admin/API (never `user_metadata`);
+JWT refresh/expiry can delay revocation. Promoted checkboxes are disabled,
+unchecked placeholders and do not assert membership or write data.
+
 ## Verification
 
 ```sh
