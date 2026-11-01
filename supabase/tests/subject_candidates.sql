@@ -81,14 +81,15 @@ $$;
 reset role;
 
 select public.record_subject_candidates('[{"subject":"SQL regression exact","count":1},{"subject":"SQL regression exact","count":2},{"subject":"SQL regression exact ","count":1}]');
+select public.record_subject_candidates('[{"subject":"SQL regression exact","count":4},{"subject":"SQL regression exact ","count":2}]');
 set local role authenticated;
 select public.record_subject_candidates('[{"subject":"SQL authenticated call","count":2}]');
 reset role;
 do $$
 begin
-  if (select count from public.subject where subject = 'SQL regression exact') <> 3
-     or (select count from public.subject where subject = 'SQL regression exact ') <> 1 then
-    raise exception 'duplicate aggregation or exact string identity failed';
+  if (select count from public.subject where subject = 'SQL regression exact') <> 7
+     or (select count from public.subject where subject = 'SQL regression exact ') <> 3 then
+    raise exception 'duplicate aggregation, count updates, or exact string identity failed';
   end if;
 end;
 $$;

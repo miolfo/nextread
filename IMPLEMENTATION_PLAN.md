@@ -29,7 +29,7 @@ This document describes the current demo behavior and acceptance scope.
 | `/app/admin/subjects` | Read-only admin view of observed subjects, occurrence counts, and enabled status. |
 | `/auth/callback` | Supabase authentication callback. |
 | `/api/import` | Goodreads CSV import endpoint. |
-| `/api/recommendations` | Local-only recommendation experiment endpoint. |
+| `/api/recommendations` | Local-only subject collection and recommendation-search endpoint. |
 
 The import and recommendation views are independently accessible without a navigation prerequisite. Recommendation generation itself requires an explicitly selected authenticated import. The admin subject page requires a verified user whose trusted `app_metadata.is_admin` is boolean `true`.
 
@@ -129,8 +129,8 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - The generate button requires a selected import and calls authenticated `POST /api/recommendations`; it is pending-disabled during the request. The experiment is local-development-only; production responds unavailable.
 - Import metadata query errors and empty import history show honest unavailable/empty states; do not use placeholder import records.
 - Pending button state only; no toasts, generated lists, sample book results, or completion feedback.
-- This local experiment processes only the selected import through the bounded Open Library integration, without genre matching or per-book statuses. Authenticated requests persist exact Open Library subject strings and per-book observation counts to `subject` via an atomic restricted database operation. Observation does not change enabled status. No AI, search, results UI, or frontend selection change.
-- Historical migrations first introduced and corrected the candidate table/RPC. The incremental merge migration moves candidate counts into `subject`, removes the old table, and retains the RPC name for callers already deployed; persistence now increments `subject.count`. Unavailable endpoint failures receive only a phase and sanitized database error code in server logs; SQL messages and subject payloads are never logged.
+- The local endpoint processes only the selected import through bounded Open Library book lookup, persists exact subject strings and per-book counts to `subject` without changing enabled status, then searches current-request subjects and returns up to ten distinct works. It does not apply genre matching, focus, or requested count; no results UI is shown. See `designs/RECOMMENDATIONS_ENGINE_PLAN.md` for ranking, bounds, filtering limitations, deadline, and local diagnostic behavior.
+- Historical migrations first introduced and corrected the candidate table/RPC. The incremental merge migration moves candidate counts into `subject`, removes the old table, and retains the RPC name for callers already deployed. The forward `20261102000000_fix_record_subject_candidates_collation.sql` migration corrects the RPC's grouped expression to avoid SQLSTATE 42803; apply it after the merge migration. Persistence increments `subject.count` while preserving enabled status. Unavailable endpoint failures receive only a phase and sanitized database error code in server logs; SQL messages and subject payloads are never logged.
 - Refreshing the page resets all controls to their defaults.
 
 ### Admin subjects — `/app/admin/subjects`
@@ -138,7 +138,7 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - Direct URL only; no navigation link. Requires trusted `app_metadata.is_admin: true`.
 - Read `subject` through an exact count plus 20-row server-side pages. Default order is occurrences descending then exact subject ascending; sortable Subject and Occurrences headers use URL-backed ordering, and pagination preserves that ordering. Out-of-range pages redirect to the last page.
 - Show a visible range and total, bounded numbered page links with ellipses, and disabled boundary controls. Enabled status is displayed read-only. No search or write actions.
-- Apply migrations including `20261101000000_merge_subject_candidates.sql`; authenticated SELECT remains protected by admin-only RLS. Set admin through trusted Supabase Auth Admin/API app_metadata, never user_metadata. JWT claim refresh/expiry can delay revocation; never use a service-role key in application code.
+- Apply migrations in timestamp order through `20261102000000_fix_record_subject_candidates_collation.sql`; authenticated SELECT remains protected by admin-only RLS. Set admin through trusted Supabase Auth Admin/API app_metadata, never user_metadata. JWT claim refresh/expiry can delay revocation; never use a service-role key in application code.
 
 ### Likely shadcn components
 
@@ -161,11 +161,11 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - Browser-side file-content reading or validation.
 - Reading-history review or editing.
 - Results pages or sample recommendation results.
-- AI integration, broader Open Library integration, and recommendation algorithms.
+- AI integration and recommendation results UI.
 - Recommendation data integrations.
 - Persistence of recommendation preferences, selected import, or other transient application state (import records are persisted as described above).
 - Custom branding assets and a bespoke visual design system.
-- Recommendation processing outside the explicitly approved local experiment.
+- Recommendation processing beyond the bounded v1 search contract.
 
 ## 11. Implementation sequence
 

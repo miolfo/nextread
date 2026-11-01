@@ -2,6 +2,14 @@ import type { Candidate } from "@/lib/recommendations-engine";
 
 export type BookSubjects = { title: string; subjects: string[] };
 
+function cancelReader(reader: ReadableStreamDefaultReader<Uint8Array>) {
+  try {
+    void reader.cancel().catch(() => {});
+  } catch {
+    // Stream cancellation is best effort and must not delay request completion.
+  }
+}
+
 function beforeDeadline<T>(
   operation: PromiseLike<T>,
   deadline: number,
@@ -71,9 +79,9 @@ export async function lookupBookSubjects(
         if (reader) {
           await beforeDeadline(reader.read(), deadline, () => {
             controller.abort();
-            void reader.cancel();
+            cancelReader(reader);
           });
-          await reader.cancel();
+          cancelReader(reader);
         }
       } catch {
         /* status remains useful if error body stalls */
@@ -92,14 +100,14 @@ export async function lookupBookSubjects(
         deadline,
         () => {
           controller.abort();
-          void reader.cancel();
+          cancelReader(reader);
         },
       );
       if (done) break;
       size += value.length;
       if (size > 2 * 1024 * 1024 || Date.now() >= deadline) {
         diagnostic = size > 2 * 1024 * 1024 ? "response-too-large" : "timeout";
-        await reader.cancel();
+        cancelReader(reader);
         throw new Error();
       }
       chunks.push(value);

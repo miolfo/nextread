@@ -139,6 +139,8 @@ describe("POST /api/recommendations", () => {
       .spyOn(globalThis, "fetch")
       .mockImplementation((input) => {
         const url = new URL(String(input));
+        if (url.pathname === "/search.json")
+          return Promise.resolve(new Response(JSON.stringify({ docs: [] })));
         const firstKey = url.searchParams.get("bibkeys")!.split(",")[0];
         return Promise.resolve(
           new Response(
@@ -152,8 +154,8 @@ describe("POST /api/recommendations", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     const response = await post();
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true });
-    expect(provider).toHaveBeenCalledOnce();
+    expect(await response.json()).toEqual({ ok: true, recommendations: [] });
+    expect(provider).toHaveBeenCalledTimes(2);
     const url = new URL(String(provider.mock.calls[0][0]));
     expect(url.origin + url.pathname).toBe("https://openlibrary.org/api/books");
     const keys = url.searchParams.get("bibkeys")!.split(",");
@@ -180,7 +182,7 @@ describe("POST /api/recommendations", () => {
     vi.useFakeTimers();
     pendingPage = true;
     const result = post();
-    await vi.advanceTimersByTimeAsync(10_000);
+    await vi.advanceTimersByTimeAsync(40_000);
     expect((await result).status).toBe(503);
     expect(provider).not.toHaveBeenCalled();
     expect(abortSignal.mock.calls.at(-1)?.[0].aborted).toBe(true);
@@ -190,7 +192,7 @@ describe("POST /api/recommendations", () => {
     vi.useFakeTimers();
     pendingOwnership = true;
     const result = post();
-    await vi.advanceTimersByTimeAsync(10_000);
+    await vi.advanceTimersByTimeAsync(40_000);
     expect((await result).status).toBe(503);
     expect(abortSignal).toHaveBeenCalledOnce();
     expect(abortSignal.mock.calls[0][0].aborted).toBe(true);
@@ -225,9 +227,9 @@ describe("POST /api/recommendations", () => {
       const log = vi.spyOn(console, "log").mockImplementation(() => {});
       const responsePromise = post();
       if (failure === "stream-timeout" || failure === "provider-timeout")
-        await vi.advanceTimersByTimeAsync(10_000);
+        await vi.advanceTimersByTimeAsync(40_000);
       const response = await responsePromise;
-      expect(await response.json()).toEqual({ ok: true });
+      expect(await response.json()).toEqual({ ok: true, recommendations: [] });
       expect(JSON.stringify(log.mock.calls)).not.toContain("secret redirect");
       expect(JSON.stringify(log.mock.calls)).not.toContain(importId);
       expect(JSON.stringify(log.mock.calls)).not.toContain(
@@ -309,6 +311,95 @@ describe("POST /api/recommendations", () => {
     expect(serializedLog).not.toHaveProperty("matched");
     expect(output).not.toContain("[Array]");
     expect(output).not.toContain("invalid-shape");
+  });
+
+  it("searches current subjects, excludes imported ISBNs, omits provider editions, deduplicates works, and logs bounded candidates only in development", async () => {
+    const fixture = isbn(20);
+    pages = [
+      {
+        data: [
+          {
+            title: "private import title",
+            isbn: fixture,
+            isbn13: "",
+            my_rating: "5",
+          },
+        ],
+        error: null,
+      },
+    ];
+    vi.stubEnv("NODE_ENV", "development");
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const urls: URL[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = new URL(String(input));
+      urls.push(url);
+      if (url.pathname === "/search.json")
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              docs: [
+                {
+                  key: "/works/OL1W",
+                  title: "Imported candidate",
+                  isbn: [fixture],
+                },
+                {
+                  key: "/works/OL2W",
+                  title: "Keep candidate",
+                  isbn: [isbn(21)],
+                  editions: {
+                    numFound: 3,
+                    start: 0,
+                    docs: [
+                      {
+                        key: "/books/OL22M",
+                        title: "Unexpected provider edition",
+                        language: ["eng"],
+                      },
+                    ],
+                  },
+                },
+                { key: "/works/OL2W", title: "Duplicate" },
+              ],
+            }),
+          ),
+        );
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            [`ISBN:${fixture}`]: { subjects: [{ name: "Fantasy" }] },
+          }),
+        ),
+      );
+    });
+    const response = await post();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      ok: true,
+      recommendations: [
+        {
+          key: "/works/OL2W",
+          title: "Keep candidate",
+          isbn: [isbn(21)],
+        },
+      ],
+    });
+    const search = urls.find((url) => url.pathname === "/search.json")!;
+    expect(search.searchParams.get("q")).toBe(
+      '(subject_key:"fantasy") AND language:eng',
+    );
+    expect(search.searchParams.get("limit")).toBe("10");
+    expect(search.searchParams.get("fields")).toBe(
+      "key,title,author_name,first_publish_year,isbn,cover_i",
+    );
+    expect(search.searchParams.get("fields")).not.toContain("editions");
+    const diagnostic = log.mock.calls.find(
+      (call) => call[0] === "Recommendation search candidates",
+    );
+    expect(diagnostic?.[1]).toContain('"Keep candidate"');
+    expect(diagnostic?.[1]).not.toContain("private import title");
+    expect(diagnostic?.[1]).not.toContain("private-user");
   });
 
   it("aggregates exact subject names and sorts by count then alphabetically", async () => {
@@ -399,7 +490,7 @@ describe("POST /api/recommendations", () => {
       return result;
     });
     const pending = post();
-    await vi.advanceTimersByTimeAsync(10_000);
+    await vi.advanceTimersByTimeAsync(40_000);
     expect((await pending).status).toBe(503);
     expect(rpcSignals).toHaveLength(1);
     expect(rpcSignals[0].aborted).toBe(true);
@@ -552,7 +643,7 @@ describe("POST /api/recommendations", () => {
       abortSignal: () => new Promise(() => {}),
     }));
     const pending = post();
-    await vi.advanceTimersByTimeAsync(10_000);
+    await vi.advanceTimersByTimeAsync(40_000);
     expect((await pending).status).toBe(503);
     expect(diagnostic).toHaveBeenCalledWith(
       "Recommendation experiment unavailable",

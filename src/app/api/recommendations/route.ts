@@ -1,11 +1,31 @@
-import { candidateBooks, type Book } from "@/lib/recommendations-engine";
+import {
+  candidateBooks,
+  excludeImportedAndDeduplicate,
+  selectSubjects,
+  type Book,
+} from "@/lib/recommendations-engine";
 import { loadImportBooks } from "@/lib/recommendations/import-books";
 import { lookupBookSubjects } from "@/lib/open-library/books-api";
+import { searchBySubjects, SearchFailure } from "@/lib/open-library/search-api";
 import { persistSubjectCandidates } from "@/lib/subjects/subject-candidates";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
+  const requestStartedAt = Date.now();
+  const deadline = requestStartedAt + 40_000;
   const logFailure = (phase: string, error?: unknown) => {
+    if (phase === "open-library-search" && error instanceof SearchFailure) {
+      console.error("Recommendation experiment unavailable", {
+        phase,
+        reason: error.reason,
+        ...(error.upstreamStatus !== undefined
+          ? { upstreamStatus: error.upstreamStatus }
+          : {}),
+        elapsedMs: error.elapsedMs,
+        remainingSearchStartBudgetMs: error.remainingBudgetMs,
+      });
+      return;
+    }
     const code =
       error &&
       typeof error === "object" &&
@@ -31,7 +51,6 @@ export async function POST(request: Request) {
   }
   if (typeof importId !== "string" || !/^[0-9a-f-]{36}$/i.test(importId))
     return Response.json({ error: "Invalid request" }, { status: 400 });
-  const deadline = Date.now() + 10_000;
   const loaded = await loadImportBooks(supabase, importId, deadline);
   if (loaded.status === "unavailable") {
     logFailure("import-books");
@@ -64,12 +83,32 @@ export async function POST(request: Request) {
   try {
     await persistSubjectCandidates(booksWithSubjects, supabase, deadline);
     console.log(
-      "Recommendation experiment",
+      "Recommendation subject persistence",
       JSON.stringify({ status: "complete" }),
     );
   } catch (error) {
     logFailure("subject-candidates", error);
     return Response.json({ error: "Unavailable" }, { status: 503 });
   }
-  return Response.json({ ok: true });
+  const subjects = selectSubjects(booksWithSubjects);
+  if (!subjects.length) return Response.json({ ok: true, recommendations: [] });
+  let found;
+  try {
+    found = await searchBySubjects(subjects, deadline);
+  } catch (error) {
+    logFailure("open-library-search", error);
+    return Response.json({ error: "Unavailable" }, { status: 503 });
+  }
+  if (process.env.NODE_ENV === "development") {
+    try {
+      console.log(
+        "Recommendation search candidates",
+        JSON.stringify(found, null, 2),
+      );
+    } catch {
+      // Diagnostics must not affect recommendation delivery.
+    }
+  }
+  const recommendations = excludeImportedAndDeduplicate(found, books);
+  return Response.json({ ok: true, recommendations });
 }

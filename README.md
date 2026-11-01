@@ -31,9 +31,11 @@ experiment records exact Open Library subject strings and observation counts in 
 it does not alter the curated subject list.
 
 `/app/admin/subjects` is a direct URL, read-only subject listing for users with
-trusted `app_metadata.is_admin: true`. Apply
-`supabase/migrations/20261101000000_merge_subject_candidates.sql` after all prior migrations before
-using it. Set the flag through Supabase Auth Admin/API (never `user_metadata`);
+trusted `app_metadata.is_admin: true`. Apply migrations in timestamp order,
+including `20261102000000_fix_record_subject_candidates_collation.sql`, before
+using it. This forward correction fixes SQLSTATE 42803 in the subject RPC while
+preserving its validation, restricted grants, and behavior. Set the flag through
+Supabase Auth Admin/API (never `user_metadata`);
 JWT refresh/expiry can delay revocation. Enabled status is read-only.
 The listing is URL-paginated in pages of 20 and can be sorted by Subject or
 Occurrences; query ordering is preserved when navigating between pages.
