@@ -7,6 +7,21 @@ afterEach(() => {
 });
 
 describe("searchBySubjects", () => {
+  it.each([
+    ["relevance", undefined, undefined],
+    ["rating", "rating", "[10 TO *]"],
+    ["random", "random", undefined],
+  ] as const)("builds the %s query", async (mode, expectedSort, ratings) => {
+    const fetcher = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ docs: [] })));
+    await searchBySubjects(["Fantasy"], Date.now() + 20_000, mode);
+    const url = new URL(String(fetcher.mock.calls[0][0]));
+    expect(url.searchParams.get("sort")).toBe(expectedSort ?? null);
+    expect(url.searchParams.get("ratings_count")).toBe(ratings ?? null);
+    expect(url.searchParams.get("limit")).toBe("10");
+  });
+
   it("allows a search to succeed after the former ten-second limit", async () => {
     vi.useFakeTimers();
     vi.spyOn(globalThis, "fetch").mockImplementation(

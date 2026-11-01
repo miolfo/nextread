@@ -54,5 +54,12 @@ npm run build
 plan, design, and `.opencode` tooling untouched. Tests use Vitest and Testing
 Library. Run `npm start` after a production build to preview production output.
 
+For direct browser testing with OpenCode, ask: `Use @ui-testing to check the
+recommendations page`. The project skill in
+`.opencode/skills/ui-testing/SKILL.md` covers Playwright login with the ignored
+root `.sampleuser` file (`TEST_USERNAME` and `TEST_PASSWORD`), responsive and
+keyboard checks, and safe credential handling. It requires local Supabase
+configuration and the Playwright browser tools; it does not add an E2E runner.
+
 Route files compose local components without page-level styling. UI primitives
 and responsive application presentation live under `src/components`.

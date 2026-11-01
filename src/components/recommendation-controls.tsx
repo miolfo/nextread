@@ -14,12 +14,11 @@ import {
 } from "@/components/ui/select";
 
 const COUNTS = ["5", "10", "20"];
-const FOCUSES = [
-  "Balanced",
-  "Similar to my favorite books",
-  "Explore something different",
-  "Discover new authors",
-];
+const SORTS = [
+  { value: "relevance", label: "Relevance" },
+  { value: "rating", label: "Highest rated" },
+  { value: "random", label: "Random" },
+] as const;
 
 export type RecommendationImport = {
   id: string;
@@ -42,7 +41,8 @@ export function RecommendationControls({
   importError?: boolean;
 }) {
   const [count, setCount] = useState("10");
-  const [focus, setFocus] = useState(FOCUSES[0]);
+  const [sort, setSort] =
+    useState<(typeof SORTS)[number]["value"]>("relevance");
   const [selectedImport, setSelectedImport] = useState("");
   const [included, setIncluded] = useState<Genre[]>([]);
   const [excluded, setExcluded] = useState<Genre[]>([]);
@@ -67,7 +67,7 @@ export function RecommendationControls({
       await fetch("/api/recommendations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ importId: selectedImport }),
+        body: JSON.stringify({ importId: selectedImport, sort }),
       });
     } catch {
       // The experiment deliberately has no user-facing results or error state.
@@ -82,9 +82,10 @@ export function RecommendationControls({
         <ControlRow
           icon={Hash}
           title="Number of recommendations"
-          description="Choose how many books to find."
+          description="The search currently returns up to 10 books."
         >
           <Select
+            disabled
             value={count}
             onValueChange={(value) => value && setCount(value)}
           >
@@ -106,29 +107,30 @@ export function RecommendationControls({
 
         <ControlRow
           icon={Target}
-          title="Focus"
-          description="Influence how the recommendations are generated."
+          title="Sorted by"
+          description="Choose how search results are ordered."
         >
           <div className="space-y-2">
             <Select
-              value={focus}
-              onValueChange={(value) => value && setFocus(value)}
+              items={SORTS}
+              value={sort}
+              onValueChange={(value) => value && setSort(value as typeof sort)}
             >
-              <SelectTrigger aria-label="Focus" className="w-full">
+              <SelectTrigger aria-label="Sorted by" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {FOCUSES.map((item) => (
-                  <SelectItem key={item} value={item}>
-                    {item}
+                {SORTS.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground">
-              {focus === "Balanced"
-                ? "A mix of popularity, similarity to your taste, and variety."
-                : focus}
+              Highest rated requires at least 10 ratings. Relevance uses the
+              search service’s default ordering; random asks it for a randomized
+              order.
             </p>
           </div>
         </ControlRow>
@@ -136,23 +138,25 @@ export function RecommendationControls({
         <ControlRow
           icon={BookOpen}
           title="Include genres"
-          description="Add genres you’re interested in."
+          description="Genre filtering is not yet applied to results."
         >
           <GenreSelector
             label="Include genres"
             selected={included}
             onToggle={(genre) => toggleGenre(genre, "include")}
+            disabled
           />
         </ControlRow>
         <ControlRow
           icon={BookOpen}
           title="Exclude genres"
-          description="Add genres you want to avoid."
+          description="Genre filtering is not yet applied to results."
         >
           <GenreSelector
             label="Exclude genres"
             selected={excluded}
             onToggle={(genre) => toggleGenre(genre, "exclude")}
+            disabled
           />
         </ControlRow>
 

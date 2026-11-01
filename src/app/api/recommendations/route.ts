@@ -3,6 +3,7 @@ import {
   excludeImportedAndDeduplicate,
   selectSubjects,
   type Book,
+  type RecommendationSort,
 } from "@/lib/recommendations-engine";
 import { loadImportBooks } from "@/lib/recommendations/import-books";
 import { lookupBookSubjects } from "@/lib/open-library/books-api";
@@ -38,19 +39,27 @@ export async function POST(request: Request) {
       ...(code ? { code } : {}),
     });
   };
+  let importId: unknown;
+  let sort: unknown;
+  try {
+    ({ importId, sort } = await request.json());
+  } catch {
+    return Response.json({ error: "Invalid request" }, { status: 400 });
+  }
+  if (
+    (sort !== undefined &&
+      sort !== "relevance" &&
+      sort !== "rating" &&
+      sort !== "random") ||
+    typeof importId !== "string" ||
+    !/^[0-9a-f-]{36}$/i.test(importId)
+  )
+    return Response.json({ error: "Invalid request" }, { status: 400 });
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  let importId: unknown;
-  try {
-    ({ importId } = await request.json());
-  } catch {
-    return Response.json({ error: "Invalid request" }, { status: 400 });
-  }
-  if (typeof importId !== "string" || !/^[0-9a-f-]{36}$/i.test(importId))
-    return Response.json({ error: "Invalid request" }, { status: 400 });
   const loaded = await loadImportBooks(supabase, importId, deadline);
   if (loaded.status === "unavailable") {
     logFailure("import-books");
@@ -94,21 +103,25 @@ export async function POST(request: Request) {
   if (!subjects.length) return Response.json({ ok: true, recommendations: [] });
   let found;
   try {
-    found = await searchBySubjects(subjects, deadline);
+    found = await searchBySubjects(
+      subjects,
+      deadline,
+      (sort ?? "relevance") as RecommendationSort,
+    );
   } catch (error) {
     logFailure("open-library-search", error);
     return Response.json({ error: "Unavailable" }, { status: 503 });
   }
+  const recommendations = excludeImportedAndDeduplicate(found, books);
   if (process.env.NODE_ENV === "development") {
     try {
       console.log(
         "Recommendation search candidates",
-        JSON.stringify(found, null, 2),
+        JSON.stringify(recommendations, null, 2),
       );
     } catch {
       // Diagnostics must not affect recommendation delivery.
     }
   }
-  const recommendations = excludeImportedAndDeduplicate(found, books);
   return Response.json({ ok: true, recommendations });
 }

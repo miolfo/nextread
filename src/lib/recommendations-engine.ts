@@ -17,6 +17,8 @@ export type OpenLibraryBook = {
   cover_i?: number;
 };
 
+export type RecommendationSort = "relevance" | "rating" | "random";
+
 const completeIsbns = new WeakMap<OpenLibraryBook, string[]>();
 
 export function normalizeIsbn(value: string | null): string | null {
@@ -70,7 +72,10 @@ export function selectSubjects(
     .map(({ subject }) => subject);
 }
 
-export function buildSubjectSearchUrl(subjects: string[]): URL {
+export function buildSubjectSearchUrl(
+  subjects: string[],
+  sort: RecommendationSort = "relevance",
+): URL {
   const url = new URL("https://openlibrary.org/search.json");
   // Open Library's str_to_key() drops these ASCII characters, lowercases,
   // and replaces spaces with underscores. Keep source subjects untouched for
@@ -91,6 +96,12 @@ export function buildSubjectSearchUrl(subjects: string[]): URL {
     .join(" OR ");
   url.searchParams.set("q", `(${query}) AND language:eng`);
   url.searchParams.set("limit", "10");
+  if (sort === "rating") {
+    url.searchParams.set("sort", "rating");
+    url.searchParams.set("ratings_count", "[10 TO *]");
+  } else if (sort === "random") {
+    url.searchParams.set("sort", "random");
+  }
   url.searchParams.set(
     "fields",
     "key,title,author_name,first_publish_year,isbn,cover_i",

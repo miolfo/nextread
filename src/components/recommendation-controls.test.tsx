@@ -17,7 +17,7 @@ const imports = [
 ];
 
 describe("Recommendation controls", () => {
-  it("shows import metadata and keeps count, focus, and selection local", async () => {
+  it("shows import metadata and keeps count, sort, and selection local", async () => {
     const user = userEvent.setup();
     const { unmount } = render(<RecommendationControls imports={imports} />);
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
@@ -25,11 +25,7 @@ describe("Recommendation controls", () => {
     expect(
       screen.getByRole("button", { name: "Generate recommendations" }),
     ).toHaveAttribute("type", "button");
-    await user.click(screen.getByLabelText("Number of recommendations"));
-    await user.click(await screen.findByRole("option", { name: "20" }));
-    expect(
-      screen.getByLabelText("Number of recommendations"),
-    ).toHaveTextContent("20");
+    expect(screen.getByLabelText("Number of recommendations")).toBeDisabled();
     await user.click(screen.getByRole("combobox", { name: "Import to use" }));
     expect(
       await screen.findByRole("option", { name: /library.csv/ }),
@@ -54,57 +50,43 @@ describe("Recommendation controls", () => {
     expect(screen.queryByRole("option")).not.toBeInTheDocument();
   });
 
-  it("moves genres between include/exclude and supports removal", async () => {
-    const user = userEvent.setup();
+  it("disables count and genre controls and explains their status", () => {
     render(<RecommendationControls />);
-    await user.click(screen.getByLabelText("Include genres"));
-    await user.click(await screen.findByRole("option", { name: "Fantasy" }));
-    await user.keyboard("{Escape}");
+    expect(screen.getByLabelText("Number of recommendations")).toBeDisabled();
     expect(
-      screen.getByRole("button", {
-        name: "Remove Fantasy from include genres",
-      }),
-    ).toBeInTheDocument();
-    await user.click(screen.getByLabelText("Exclude genres"));
-    await user.click(await screen.findByRole("option", { name: "Fantasy" }));
-    await user.keyboard("{Escape}");
-    expect(
-      screen.queryByRole("button", {
-        name: "Remove Fantasy from include genres",
-      }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", {
-        name: "Remove Fantasy from exclude genres",
-      }),
-    ).toBeInTheDocument();
+      screen.getAllByText(/Genre filtering is not yet applied/),
+    ).toHaveLength(2);
+    expect(screen.getByLabelText("Include genres")).toBeDisabled();
+    expect(screen.getByLabelText("Exclude genres")).toBeDisabled();
   });
 
-  it.each(["Include genres", "Exclude genres"])(
-    "%s exposes checked membership independently of keyboard highlight",
-    async (label) => {
-      const user = userEvent.setup();
-      render(<RecommendationControls />);
-      await user.click(screen.getByLabelText(label));
-      await screen.findByRole("option", {
-        name: "Science Fiction",
-        selected: true,
-      });
-      await user.keyboard("{ArrowDown}{Enter}");
-      const fantasy = screen.getByRole("option", { name: "Fantasy" });
-      expect(fantasy).toHaveAttribute("aria-checked", "true");
-
-      await user.keyboard("{ArrowDown}");
-      expect(fantasy).toHaveAttribute("aria-selected", "false");
-      expect(fantasy).toHaveAttribute("aria-checked", "true");
-      const mystery = screen.getByRole("option", { name: "Mystery" });
-      expect(mystery).toHaveAttribute("aria-selected", "true");
-      expect(mystery).toHaveAttribute("aria-checked", "false");
-
-      await user.keyboard("{ArrowUp}{Enter}");
-      expect(fantasy).toHaveAttribute("aria-checked", "false");
-    },
-  );
+  it("submits the selected sort option", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ ok: true })));
+    render(<RecommendationControls imports={imports} />);
+    await user.click(screen.getByRole("combobox", { name: "Sorted by" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Highest rated" }),
+    );
+    expect(
+      screen.getByRole("combobox", { name: "Sorted by" }),
+    ).toHaveTextContent("Highest rated");
+    await user.click(screen.getByRole("combobox", { name: "Import to use" }));
+    await user.click(
+      await screen.findByRole("option", { name: /library.csv/ }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Generate recommendations" }),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/recommendations",
+      expect.objectContaining({
+        body: JSON.stringify({ importId: "new", sort: "rating" }),
+      }),
+    );
+  });
 
   it("requires an import, submits the selected ID, and prevents overlapping requests", async () => {
     const user = userEvent.setup();
@@ -130,7 +112,9 @@ describe("Recommendation controls", () => {
     expect(button).toBeDisabled();
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/recommendations",
-      expect.objectContaining({ body: JSON.stringify({ importId: "new" }) }),
+      expect.objectContaining({
+        body: JSON.stringify({ importId: "new", sort: "relevance" }),
+      }),
     );
     await user.click(button);
     expect(fetchMock).toHaveBeenCalledOnce();

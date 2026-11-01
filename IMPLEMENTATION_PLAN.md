@@ -98,13 +98,9 @@ Route sources are `src/app/page.tsx`, `src/app/app/login/page.tsx`, `src/app/app
 
 ### Unified recommendation form
 
-- Recommendation count selector: **5, 10, 20**, initially set to **10**.
-- Focus selector, initially **Balanced**:
-  - Balanced.
-  - Similar to my favorite books.
-  - Explore something different.
-  - Discover new authors.
-- Include-genres and exclude-genres multi-selection controls.
+- Recommendation count is fixed at 10 for now; the displayed count control is disabled.
+- Sorted by selector, initially **Relevance**: Relevance, Highest rated, or Random.
+- Include-genres and exclude-genres controls are disabled placeholders with explanatory copy; genre filtering is not applied.
 - Import selector populated from the signed-in user's `import_runs` metadata, showing filename and upload date. Import records are persisted; the selected import is transient and is not persisted.
 - One “Generate recommendations” action.
 
@@ -129,7 +125,7 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - The generate button requires a selected import and calls authenticated `POST /api/recommendations`; it is pending-disabled during the request. The experiment is local-development-only; production responds unavailable.
 - Import metadata query errors and empty import history show honest unavailable/empty states; do not use placeholder import records.
 - Pending button state only; no toasts, generated lists, sample book results, or completion feedback.
-- The local endpoint processes only the selected import through bounded Open Library book lookup, persists exact subject strings and per-book counts to `subject` without changing enabled status, then searches current-request subjects and returns up to ten distinct works. It does not apply genre matching, focus, or requested count; no results UI is shown. See `designs/RECOMMENDATIONS_ENGINE_PLAN.md` for ranking, bounds, filtering limitations, deadline, and local diagnostic behavior.
+- The local endpoint processes only the selected import through bounded Open Library book lookup, persists exact subject strings and per-book counts to `subject` without changing enabled status, then searches current-request subjects and returns up to ten distinct works. Relevance leaves provider sort and ratings filter unset; Highest rated sends `sort=rating` and `ratings_count:[10 TO *]`; Random sends `sort=random`. Genre matching and requested count are not applied; no results UI is shown. See `designs/RECOMMENDATIONS_ENGINE_PLAN.md` for ranking, bounds, filtering limitations, deadline, and local diagnostic behavior.
 - Historical migrations first introduced and corrected the candidate table/RPC. The incremental merge migration moves candidate counts into `subject`, removes the old table, and retains the RPC name for callers already deployed. The forward `20261102000000_fix_record_subject_candidates_collation.sql` migration corrects the RPC's grouped expression to avoid SQLSTATE 42803; apply it after the merge migration. Persistence increments `subject.count` while preserving enabled status. Unavailable endpoint failures receive only a phase and sanitized database error code in server logs; SQL messages and subject payloads are never logged.
 - Refreshing the page resets all controls to their defaults.
 

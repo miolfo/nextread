@@ -27,10 +27,12 @@ export function GenreSelector({
   label,
   selected,
   onToggle,
+  disabled = false,
 }: {
   label: string;
   selected: Genre[];
   onToggle: (genre: Genre) => void;
+  disabled?: boolean;
 }) {
   const id = useId();
   return (
@@ -51,6 +53,7 @@ export function GenreSelector({
                 size="icon-xs"
                 aria-label={`Remove ${genre} from ${label.toLowerCase()}`}
                 onClick={() => onToggle(genre)}
+                disabled={disabled}
               >
                 <X aria-hidden="true" />
               </Button>
@@ -65,6 +68,7 @@ export function GenreSelector({
               type="button"
               variant="outline"
               className="w-full justify-between"
+              disabled={disabled}
             />
           }
           id={id}
@@ -88,9 +92,11 @@ export function GenreSelector({
                   <CommandItem
                     key={genre}
                     value={genre}
+                    disabled={disabled}
                     data-checked={selected.includes(genre)}
                     aria-checked={selected.includes(genre)}
-                    onSelect={() => onToggle(genre)}
+                    onSelect={() => !disabled && onToggle(genre)}
+                    aria-disabled={disabled}
                   >
                     {genre}
                   </CommandItem>

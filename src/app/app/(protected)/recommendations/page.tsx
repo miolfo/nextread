@@ -19,8 +19,9 @@ export default async function RecommendationsPage() {
   return (
     <PageLayout>
       <PageIntroduction centered title="Get book recommendations">
-        Customize recommendations based on your reading history and the genres
-        you choose.
+        Find books from your reading history, ordered by relevance, rating, or
+        at random. Genre controls and result count are shown for the planned
+        experience but are not active yet.
       </PageIntroduction>
       <RecommendationControls
         imports={(data ?? []) as RecommendationImport[]}

@@ -2,6 +2,7 @@ import {
   buildSubjectSearchUrl,
   validateSearchBooks,
   type OpenLibraryBook,
+  type RecommendationSort,
 } from "@/lib/recommendations-engine";
 
 export type SearchFailureReason =
@@ -29,6 +30,7 @@ export class SearchFailure extends Error {
 export async function searchBySubjects(
   subjects: string[],
   deadline: number,
+  sort: RecommendationSort = "relevance",
 ): Promise<OpenLibraryBook[]> {
   if (!subjects.length) return [];
   const startedAt = Date.now();
@@ -65,7 +67,7 @@ export async function searchBySubjects(
   try {
     let url: URL;
     try {
-      url = buildSubjectSearchUrl(subjects);
+      url = buildSubjectSearchUrl(subjects, sort);
     } catch {
       throw failure("query-too-large");
     }

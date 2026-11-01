@@ -107,6 +107,8 @@ describe("POST /api/recommendations", () => {
     getUser.mockResolvedValue({ data: { user: { id: "x" } } });
     expect((await post({})).status).toBe(400);
     expect((await post({ importId: "invalid" })).status).toBe(400);
+    expect((await post({ importId, sort: "popular" })).status).toBe(400);
+    expect((await post({ importId, sort: 4 })).status).toBe(400);
     expect(from).not.toHaveBeenCalled();
   });
 
@@ -375,7 +377,8 @@ describe("POST /api/recommendations", () => {
     });
     const response = await post();
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    const result = await response.json();
+    expect(result).toEqual({
       ok: true,
       recommendations: [
         {
@@ -397,7 +400,16 @@ describe("POST /api/recommendations", () => {
     const diagnostic = log.mock.calls.find(
       (call) => call[0] === "Recommendation search candidates",
     );
-    expect(diagnostic?.[1]).toContain('"Keep candidate"');
+    expect(JSON.parse(diagnostic?.[1] as string)).toEqual([
+      {
+        key: "/works/OL2W",
+        title: "Keep candidate",
+        isbn: [isbn(21)],
+      },
+    ]);
+    expect(JSON.parse(diagnostic?.[1] as string)).toEqual(
+      result.recommendations,
+    );
     expect(diagnostic?.[1]).not.toContain("private import title");
     expect(diagnostic?.[1]).not.toContain("private-user");
   });
