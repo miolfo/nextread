@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type SubjectCandidate = { subject: string; count: string };
+export type SubjectCandidate = {
+  subject: string;
+  count: string;
+  enabled: boolean;
+};
 export type CandidateSort = "candidate" | "occurrences";
 export type SortDirection = "asc" | "desc";
 export const SUBJECT_CANDIDATE_PAGE_SIZE = 20;
@@ -18,7 +22,7 @@ export async function loadSubjectCandidates(
   direction: SortDirection,
 ): Promise<SubjectCandidatePage> {
   const { count, error: countError } = await supabase
-    .from("subject_candidate")
+    .from("subject")
     .select("subject", { count: "exact", head: true });
   if (
     countError ||
@@ -38,8 +42,8 @@ export async function loadSubjectCandidates(
   const ascending = direction === "asc";
   const from = (page - 1) * SUBJECT_CANDIDATE_PAGE_SIZE;
   let query = supabase
-    .from("subject_candidate")
-    .select("subject, count_text:count::text")
+    .from("subject")
+    .select("subject, count_text:count::text, enabled")
     .order(primary, { ascending });
   if (sort === "occurrences")
     query = query.order("subject", { ascending: true });
@@ -50,9 +54,10 @@ export async function loadSubjectCandidates(
   if (error || !data)
     throw new Error("Unable to load subject candidates", { cause: error });
   return {
-    candidates: data.map(({ subject, count_text }) => ({
+    candidates: data.map(({ subject, count_text, enabled }) => ({
       subject,
       count: count_text,
+      enabled,
     })),
     total: count,
     page,

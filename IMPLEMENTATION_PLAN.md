@@ -26,7 +26,7 @@ This document describes the current demo behavior and acceptance scope.
 | `/app/imports` | Saved-import review. |
 | `/app/login` | Email/password sign-in. |
 | `/app/recommendations` | Mock recommendation configuration screen. |
-| `/app/admin/subjects` | Read-only admin view of subject candidates. |
+| `/app/admin/subjects` | Read-only admin view of observed subjects, occurrence counts, and enabled status. |
 | `/auth/callback` | Supabase authentication callback. |
 | `/api/import` | Goodreads CSV import endpoint. |
 | `/api/recommendations` | Local-only recommendation experiment endpoint. |
@@ -130,16 +130,16 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - The generate button requires a selected import and calls authenticated `POST /api/recommendations`; it is pending-disabled during the request. The experiment is local-development-only; production responds unavailable.
 - Import metadata query errors and empty import history show honest unavailable/empty states; do not use placeholder import records.
 - Pending button state only; no toasts, generated lists, sample book results, or completion feedback.
-- This local experiment processes only the selected import through the bounded Open Library integration, without genre matching or per-book statuses. Authenticated requests persist exact Open Library subject strings and per-book observation counts to private `subject_candidate` via an atomic restricted database operation. The separate private `subject` table is curated and untouched. No AI, search, results UI, promotion automation, or frontend selection change.
-- The initial subject-candidate migration has an incremental follow-up migration (`20261027000000_fix_record_subject_candidates_grouping.sql`) correcting the aggregate expression; deployments that already ran the initial migration must apply the follow-up. Unavailable endpoint failures receive only a phase and sanitized database error code in server logs; SQL messages and subject payloads are never logged.
+- This local experiment processes only the selected import through the bounded Open Library integration, without genre matching or per-book statuses. Authenticated requests persist exact Open Library subject strings and per-book observation counts to `subject` via an atomic restricted database operation. Observation does not change enabled status. No AI, search, results UI, or frontend selection change.
+- Historical migrations first introduced and corrected the candidate table/RPC. The incremental merge migration moves candidate counts into `subject`, removes the old table, and retains the RPC name for callers already deployed; persistence now increments `subject.count`. Unavailable endpoint failures receive only a phase and sanitized database error code in server logs; SQL messages and subject payloads are never logged.
 - Refreshing the page resets all controls to their defaults.
 
-### Admin subject candidates — `/app/admin/subjects`
+### Admin subjects — `/app/admin/subjects`
 
 - Direct URL only; no navigation link. Requires trusted `app_metadata.is_admin: true`.
-- Read `subject_candidate` through an exact count plus 20-row server-side pages. Default order is occurrences descending then exact subject ascending; sortable Candidate and Occurrences headers use URL-backed ordering, and pagination preserves that ordering. Out-of-range pages redirect to the last page.
-- Show a visible range and total, bounded numbered page links with ellipses, and disabled boundary controls. Promoted remains a disabled, unchecked placeholder and implies no membership. No search or write actions.
-- Apply migration `20261028000000_enable_admin_subject_candidate_read.sql` for authenticated SELECT protected by admin-only RLS. The curated `subject` table remains private. Set admin through trusted Supabase Auth Admin/API app_metadata, never user_metadata. JWT claim refresh/expiry can delay revocation; never use a service-role key in application code.
+- Read `subject` through an exact count plus 20-row server-side pages. Default order is occurrences descending then exact subject ascending; sortable Subject and Occurrences headers use URL-backed ordering, and pagination preserves that ordering. Out-of-range pages redirect to the last page.
+- Show a visible range and total, bounded numbered page links with ellipses, and disabled boundary controls. Enabled status is displayed read-only. No search or write actions.
+- Apply migrations including `20261101000000_merge_subject_candidates.sql`; authenticated SELECT remains protected by admin-only RLS. Set admin through trusted Supabase Auth Admin/API app_metadata, never user_metadata. JWT claim refresh/expiry can delay revocation; never use a service-role key in application code.
 
 ### Likely shadcn components
 

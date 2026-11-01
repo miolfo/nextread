@@ -16,17 +16,19 @@ describe("admin subject candidate display", () => {
     const onChange = vi.fn();
     render(
       <AdminSubjectCandidates
-        candidates={[{ subject: name, count: "9223372036854775807" }]}
+        candidates={[
+          { subject: name, count: "9223372036854775807", enabled: false },
+        ]}
       />,
     );
     expect(
-      screen.getByRole("columnheader", { name: "Candidate" }),
+      screen.getByRole("columnheader", { name: "Subject" }),
     ).toBeInTheDocument();
     expect(screen.getByText(name)).toBeInTheDocument();
     expect(screen.getByText("9223372036854775807")).toBeInTheDocument();
-    expect(screen.getByText(/Showing 1–1 of 1 candidates/)).toBeInTheDocument();
+    expect(screen.getByText(/Showing 1–1 of 1 subjects/)).toBeInTheDocument();
     const checkbox = screen.getByRole("checkbox", {
-      name: `${name}: promoted`,
+      name: `${name}: enabled`,
     });
     expect(checkbox).toBeDisabled();
     expect(checkbox).not.toBeChecked();
@@ -46,7 +48,7 @@ describe("admin subject candidate display", () => {
   it("toggles sort, resets page for sorting, preserves order on page links, and bounds huge pagination", () => {
     const { rerender } = render(
       <AdminSubjectCandidates
-        candidates={[{ subject: "A", count: "2" }]}
+        candidates={[{ subject: "A", count: "2", enabled: true }]}
         total={200}
         page={5}
         sort="occurrences"
@@ -57,7 +59,7 @@ describe("admin subject candidate display", () => {
       "href",
       "/app/admin/subjects?page=1&sort=occurrences&direction=asc",
     );
-    expect(screen.getByRole("link", { name: "Candidate" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Subject" })).toHaveAttribute(
       "href",
       "/app/admin/subjects?page=1&sort=candidate&direction=asc",
     );
@@ -71,7 +73,7 @@ describe("admin subject candidate display", () => {
     );
     rerender(
       <AdminSubjectCandidates
-        candidates={[{ subject: "A", count: "2" }]}
+        candidates={[{ subject: "A", count: "2", enabled: true }]}
         total={Number.MAX_SAFE_INTEGER}
         page={100}
       />,

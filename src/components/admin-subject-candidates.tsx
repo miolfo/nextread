@@ -27,11 +27,9 @@ export function AdminSubjectsView({
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Admin
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight">
-          Subject candidates
-        </h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Subjects</h1>
         <p className="text-muted-foreground">
-          Review subject candidates extracted from imported data.
+          Review subjects and their observed occurrence counts.
         </p>
       </div>
       <AdminSubjectCandidates
@@ -117,7 +115,7 @@ export function AdminSubjectCandidates({
                     className="underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring"
                     href={sortHref("candidate")}
                   >
-                    Candidate
+                    Subject
                     {sort === "candidate"
                       ? direction === "asc"
                         ? " ↑"
@@ -149,21 +147,21 @@ export function AdminSubjectCandidates({
                   </Link>
                 </th>
                 <th scope="col" className="px-4 py-3 font-medium">
-                  Promoted
+                  Enabled
                 </th>
               </tr>
             </thead>
             <tbody>
-              {candidates.map(({ subject, count }) => (
+              {candidates.map(({ subject, count, enabled }) => (
                 <tr className="border-t" key={subject}>
                   <td className="max-w-0 break-words px-4 py-3">{subject}</td>
                   <td className="px-4 py-3 tabular-nums">{count}</td>
                   <td className="px-4 py-3">
                     <input
-                      aria-label={`${subject}: promoted`}
+                      aria-label={`${subject}: enabled`}
                       type="checkbox"
                       disabled
-                      checked={false}
+                      checked={enabled}
                       readOnly
                     />
                   </td>
@@ -178,7 +176,7 @@ export function AdminSubjectCandidates({
           <p className="text-sm text-muted-foreground">
             Showing {((page - 1) * pageSize + 1).toLocaleString()}–
             {Math.min(page * pageSize, total).toLocaleString()} of{" "}
-            {total.toLocaleString()} candidates
+            {total.toLocaleString()} subjects
           </p>
           <nav
             aria-label="Subject candidate pages"

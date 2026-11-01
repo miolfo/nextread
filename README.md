@@ -27,16 +27,15 @@ Visit `http://localhost:3000`; `/` is public and app routes require sign-in.
 The import screen posts the selected CSV to the server, where it is parsed and the
 import and its book rows are persisted in Supabase. Recommendations require an
 explicitly selected import belonging to the authenticated user. The recommendation
-experiment records exact Open Library subject strings in a private candidate table;
+experiment records exact Open Library subject strings and observation counts in the subject table;
 it does not alter the curated subject list.
 
-`/app/admin/subjects` is a direct URL, read-only candidate listing for users with
+`/app/admin/subjects` is a direct URL, read-only subject listing for users with
 trusted `app_metadata.is_admin: true`. Apply
-`supabase/migrations/20261028000000_enable_admin_subject_candidate_read.sql` before
+`supabase/migrations/20261101000000_merge_subject_candidates.sql` after all prior migrations before
 using it. Set the flag through Supabase Auth Admin/API (never `user_metadata`);
-JWT refresh/expiry can delay revocation. Promoted checkboxes are disabled,
-unchecked placeholders and do not assert membership or write data.
-The listing is URL-paginated in pages of 20 and can be sorted by Candidate or
+JWT refresh/expiry can delay revocation. Enabled status is read-only.
+The listing is URL-paginated in pages of 20 and can be sorted by Subject or
 Occurrences; query ordering is preserved when navigating between pages.
 
 ## Verification

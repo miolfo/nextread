@@ -27,7 +27,7 @@ function mockClient(rows: unknown[], total = 41, error: Error | null = null) {
 describe("loadSubjectCandidates", () => {
   it("queries exact counts and only requested ranges with numeric ordering and stable ties", async () => {
     const { client, ranges, orders } = mockClient([
-      { subject: "same", count_text: "9223372036854775807" },
+      { subject: "same", count_text: "9223372036854775807", enabled: false },
     ]);
     const result = await loadSubjectCandidates(
       client,
@@ -36,7 +36,9 @@ describe("loadSubjectCandidates", () => {
       "desc",
     );
     expect(result).toEqual({
-      candidates: [{ subject: "same", count: "9223372036854775807" }],
+      candidates: [
+        { subject: "same", count: "9223372036854775807", enabled: false },
+      ],
       total: 41,
       page: 2,
     });
