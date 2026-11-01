@@ -60,6 +60,14 @@ recommendations page`. The project skill in
 root `.sampleuser` file (`TEST_USERNAME` and `TEST_PASSWORD`), responsive and
 keyboard checks, and safe credential handling. It requires local Supabase
 configuration and the Playwright browser tools; it does not add an E2E runner.
+The root `opencode.json` overrides the Playwright MCP with
+`@playwright/mcp@latest --secrets .sampleuser --isolated`, running from the
+repository workspace. Create the ignored root `.sampleuser` file privately before
+connecting. The skill passes only secret key names to Playwright's form-fill
+tools; the MCP server resolves their values. No absolute paths or credentials
+are stored in the override. Redaction does not protect screenshots or traces;
+avoid recording during login. OpenCode reloads config automatically; use `/reload`
+if needed and `/mcps` to check the connection.
 
 Route files compose local components without page-level styling. UI primitives
 and responsive application presentation live under `src/components`.

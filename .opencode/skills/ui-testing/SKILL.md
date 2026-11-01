@@ -18,17 +18,47 @@ Use this workflow for direct browser verification, not as a replacement for Vite
 ## Handle credentials privately
 
 - Never print, `cat`, or read `.sampleuser` into model-visible tool output. Never paste credentials as literal tool arguments, source code, reports, or tracked files. Do not source the file as executable shell code.
-- Prefer a Playwright server-side code tool that can read the local file and fill the form within the same execution. Discover this tool's capabilities and respect its permissions; do not bypass a denied tool. Read the file in the server-side Node runtime, not through `page.evaluate` (which runs in the browser). Parse only the required env-style entries with a non-executing parser, such as Node's `util.parseEnv` when supported. Keep values in memory and return only a sanitized success/failure status.
-- Confirm that the browser tool can access the repository filesystem before using this approach. Do not assume the browser server's current directory is the repository root. Supply the resolved root path, never the secret values.
+- Use Playwright MCP's built-in secrets lookup described below. The MCP server reads `.sampleuser`; the agent passes only the key names. No filesystem access from browser snippets is required. Respect tool permissions; never bypass a denied capability.
 - Do not log the parsed object, environment, form contents, cookies, storage state, auth responses, or request headers. Catch credential/login failures and return a generic error, not raw exception details that might include input values.
 - Do not capture screenshots, snapshots, traces, or DOM dumps while login fields are populated. After login, avoid artifacts that reveal the account email or other personal data. Inspect console/network errors selectively and sanitize them before reporting.
 - If tools cannot securely read and fill without exposing credentials, stop and ask the user to log in manually in the test browser. Do not fall back to printing the secrets. Do not persist a credential-bearing helper or browser storage state.
+
+## Built-in MCP secrets
+
+The root `opencode.json` overrides the `playwright` MCP server for this project. It runs `@playwright/mcp@latest` with `cwd: "."`, `--secrets .sampleuser`, and `--isolated`. The secrets path is relative to the repository workspace, not this skill's directory. The browser profile stays in memory; no saved auth state is required. The ignored secrets file must exist before the server connects.
+
+After confirming the approved local login URL and inspecting the empty form, use `browser_fill_form` with secret **key names** as values:
+
+```json
+{
+  "fields": [
+    {
+      "name": "Email address",
+      "target": "#email",
+      "type": "textbox",
+      "value": "TEST_USERNAME"
+    },
+    {
+      "name": "Password",
+      "target": "#password",
+      "type": "textbox",
+      "value": "TEST_PASSWORD"
+    }
+  ]
+}
+```
+
+Discover the current tool schema first; update selectors from the empty form if needed. `browser_type` also supports secret lookup through its `text` input. Do not prefix the key with `SECRET_` or wrap it in environment-variable syntax. The server substitutes the actual values and redacts known values in text responses. Arbitrary `page.fill()` calls inside `browser_run_code_unsafe` do **not** perform this lookup.
+
+Redaction is a convenience, not a security boundary: it does not make screenshots, traces, videos, or arbitrary output safe. Keep recording/session saving disabled during login, do not request snapshots of populated fields, and do not inspect auth headers or payloads. If a key is missing, the tool can fill the literal key instead, so a successful fill does not prove the secrets configuration or login worked. Never read back the field values to diagnose this; ask the user to check the local file privately and verify the project MCP override is active.
+
+OpenCode reloads configuration automatically; use `/reload` if needed and `/mcps` to inspect the connection. If secret lookup is unavailable, use manual sign-in in this same test browser rather than exposing credentials or weakening isolation. Since `latest` can change tool behavior, rediscover schemas and check the supported secrets behavior after upgrades.
 
 ## Sign in through the UI
 
 1. Use an isolated test browser context when supported; do not disrupt an unrelated existing session. For an unauthenticated check, open `/app/recommendations` directly and confirm it redirects to `/app/login` with a safe local return path. If already authenticated and isolation is unavailable, report that the redirect check was skipped rather than claiming it passed.
 2. On `/app/login`, locate inputs by labels **Email address** and **Password**, and the button by role and name **Sign in**. Inspect an empty form first if selectors need verification; prefer accessible locators to brittle CSS.
-3. In the private server-side execution described above, fill Email address from `TEST_USERNAME` and Password from `TEST_PASSWORD`, then click Sign in. Exercise the real form; do not bypass it by injecting cookies, local storage, or Supabase tokens.
+3. Fill with the built-in secret lookup above, recheck the approved local origin, and click **Sign in**. Otherwise ask for manual sign-in in this same test browser. Exercise the real form; do not bypass it by injecting cookies, local storage, or Supabase tokens.
 4. Wait for navigation to the intended protected route and a route-specific visible heading. A click alone does not prove authentication succeeded. Confirm the login form is gone. On failure, report a sanitized authentication blocker and stop rather than repeatedly attempting login.
 5. Once authenticated, navigate independently to `/app/import` and `/app/recommendations`. Neither page should require first visiting the other or completing an import. Generating recommendations does require a selected saved import.
 
