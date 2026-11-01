@@ -33,7 +33,13 @@ it("renders sign out in app navigation", () => {
     "Sign out",
   ]);
   expect(screen.getByRole("button", { name: "Sign out" })).toHaveClass(
-    "hover:bg-muted",
+    "rounded-full",
+    "border-emerald-900/20",
+    "cursor-pointer",
+  );
+  expect(screen.getByRole("link", { name: /Import history/ })).toHaveAttribute(
+    "href",
+    "/app/imports",
   );
 });
 

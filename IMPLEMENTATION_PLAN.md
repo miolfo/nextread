@@ -45,7 +45,7 @@ Route sources are `src/app/page.tsx`, `src/app/app/login/page.tsx`, `src/app/app
 - Any responsive layout styling needed by the pages should be encapsulated in minimal layout components under `/components`, rather than creating a custom design system.
 - Global CSS is limited to Tailwind/shadcn setup, theme tokens, and required base styles. It should not contain page-specific presentation.
 - Retain default shadcn typography, colors, borders, radii, and control styling wherever practical.
-- Do not recreate the reference's illustration, custom logo, textures, decorative gradients, or serif typography.
+- Do not recreate the reference's illustration, custom logo, textures, decorative gradients, or serif typography in page content. The shared `PageLayout` header retains its serif wordmark.
 
 ## 5. Shared presentation
 
