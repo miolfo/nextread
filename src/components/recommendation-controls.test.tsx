@@ -17,16 +17,14 @@ const imports = [
 ];
 
 describe("Recommendation controls", () => {
-  it("shows import metadata and keeps prompt, count, focus, and selection local", async () => {
+  it("shows import metadata and keeps count, focus, and selection local", async () => {
     const user = userEvent.setup();
     const { unmount } = render(<RecommendationControls imports={imports} />);
-    expect(screen.getByRole("textbox")).toHaveAttribute("maxLength", "500");
-    expect(screen.getByText("0/500")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(screen.queryByText(/\/500/)).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Generate recommendations" }),
     ).toHaveAttribute("type", "button");
-    await user.type(screen.getByRole("textbox"), "A new adventure");
-    expect(screen.getByText("15/500")).toBeInTheDocument();
     await user.click(screen.getByLabelText("Number of recommendations"));
     await user.click(await screen.findByRole("option", { name: "20" }));
     expect(
@@ -42,7 +40,6 @@ describe("Recommendation controls", () => {
     ).toHaveTextContent("library.csv");
     unmount();
     render(<RecommendationControls imports={imports} />);
-    expect(screen.getByRole("textbox")).toHaveValue("");
     expect(
       screen.getByLabelText("Number of recommendations"),
     ).toHaveTextContent("10");

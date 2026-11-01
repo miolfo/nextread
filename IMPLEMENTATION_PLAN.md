@@ -98,7 +98,6 @@ Route sources are `src/app/page.tsx`, `src/app/app/login/page.tsx`, `src/app/app
 
 ### Unified recommendation form
 
-- Optional prompt textarea, limited to 500 characters.
 - Recommendation count selector: **5, 10, 20**, initially set to **10**.
 - Focus selector, initially **Balanced**:
   - Balanced.

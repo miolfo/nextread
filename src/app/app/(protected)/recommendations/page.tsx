@@ -19,8 +19,8 @@ export default async function RecommendationsPage() {
   return (
     <PageLayout>
       <PageIntroduction centered title="Get book recommendations">
-        Tell us what you&apos;re in the mood for, and customize your
-        recommendations.
+        Customize recommendations based on your reading history and the genres
+        you choose.
       </PageIntroduction>
       <RecommendationControls
         imports={(data ?? []) as RecommendationImport[]}

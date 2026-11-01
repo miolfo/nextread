@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { BookOpen, Hash, MessageCircle, Sparkles, Target } from "lucide-react";
+import { BookOpen, Hash, Sparkles, Target } from "lucide-react";
 import { GenreSelector, type Genre } from "@/components/genre-selector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -13,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 
 const COUNTS = ["5", "10", "20"];
 const FOCUSES = [
@@ -43,7 +41,6 @@ export function RecommendationControls({
   imports?: RecommendationImport[];
   importError?: boolean;
 }) {
-  const [request, setRequest] = useState("");
   const [count, setCount] = useState("10");
   const [focus, setFocus] = useState(FOCUSES[0]);
   const [selectedImport, setSelectedImport] = useState("");
@@ -82,44 +79,6 @@ export function RecommendationControls({
   return (
     <Card className="mx-auto w-full max-w-4xl">
       <CardContent className="space-y-0 p-0">
-        <section
-          className="space-y-4 p-5 sm:p-6"
-          aria-labelledby="prompt-heading"
-        >
-          <div className="flex items-center gap-3">
-            <MessageCircle aria-hidden="true" className="size-5" />
-            <div>
-              <h2 id="prompt-heading" className="font-semibold">
-                Optional prompt
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Describe what you&apos;re looking for, or leave this blank.
-              </p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="request" className="sr-only">
-              Optional prompt
-            </Label>
-            <Textarea
-              id="request"
-              maxLength={500}
-              value={request}
-              onChange={(event) => setRequest(event.target.value)}
-              className="min-h-28"
-              placeholder={
-                "E.g. “Suggest me engaging fantasy books with strong character development”, “Books similar to Project Hail Mary”, or “Something cozy and easy to read”."
-              }
-            />
-            <p
-              className="text-right text-xs text-muted-foreground"
-              aria-live="polite"
-            >
-              {request.length}/500
-            </p>
-          </div>
-        </section>
-
         <ControlRow
           icon={Hash}
           title="Number of recommendations"
@@ -268,7 +227,7 @@ function ControlRow({
   children: ReactNode;
 }) {
   return (
-    <section className="grid gap-4 border-t p-5 sm:grid-cols-2 sm:items-center sm:p-6">
+    <section className="grid gap-4 p-5 sm:grid-cols-2 sm:items-center sm:p-6">
       <div className="flex items-start gap-3">
         <Icon aria-hidden="true" className="mt-0.5 size-5 shrink-0" />
         <div>
