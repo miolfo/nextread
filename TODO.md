@@ -11,4 +11,4 @@
 - [ ] Ensure that recommendations don't exist in the import goodreads file at all
 - [ ] Backfill books if some are filtered out
 - [ ] Include author cap for limiting books in a series for example
-- [ ] Bypass login or something for playwright
+- [ ] Fuzzy search/subject handling/normalization etc
