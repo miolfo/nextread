@@ -137,8 +137,8 @@ Start genre selections empty. Selected genres can be added and removed with stan
 ### Admin subject candidates — `/app/admin/subjects`
 
 - Direct URL only; no navigation link. Requires trusted `app_metadata.is_admin: true`.
-- Read all `subject_candidate` rows in batches, ordered by count descending then exact subject ascending. Show Candidate, Occurrences, Promoted, and total count with honest empty/error states.
-- Promoted is a disabled, unchecked placeholder and implies no membership. No search, sorting, pagination, or write actions.
+- Read `subject_candidate` through an exact count plus 20-row server-side pages. Default order is occurrences descending then exact subject ascending; sortable Candidate and Occurrences headers use URL-backed ordering, and pagination preserves that ordering. Out-of-range pages redirect to the last page.
+- Show a visible range and total, bounded numbered page links with ellipses, and disabled boundary controls. Promoted remains a disabled, unchecked placeholder and implies no membership. No search or write actions.
 - Apply migration `20261028000000_enable_admin_subject_candidate_read.sql` for authenticated SELECT protected by admin-only RLS. The curated `subject` table remains private. Set admin through trusted Supabase Auth Admin/API app_metadata, never user_metadata. JWT claim refresh/expiry can delay revocation; never use a service-role key in application code.
 
 ### Likely shadcn components

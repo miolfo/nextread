@@ -36,6 +36,8 @@ trusted `app_metadata.is_admin: true`. Apply
 using it. Set the flag through Supabase Auth Admin/API (never `user_metadata`);
 JWT refresh/expiry can delay revocation. Promoted checkboxes are disabled,
 unchecked placeholders and do not assert membership or write data.
+The listing is URL-paginated in pages of 20 and can be sorted by Candidate or
+Occurrences; query ordering is preserved when navigating between pages.
 
 ## Verification
 

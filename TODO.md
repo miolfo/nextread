@@ -4,3 +4,4 @@
 - [ ] Fix recommendations "import to use" input to match other inputs.
 - [ ] Dark mode.
 - [ ] Center all main headings in all views.
+- [ ] Subject candidates "removal" by marking them as something to ignore

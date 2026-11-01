@@ -1,73 +1,92 @@
 import { describe, expect, it, vi } from "vitest";
 import { loadSubjectCandidates } from "@/lib/subjects/admin-subject-candidates";
 
-function clientWithBatches(batches: unknown[][], failAt?: number) {
-  let call = 0;
+function mockClient(rows: unknown[], total = 41, error: Error | null = null) {
   const ranges: number[][] = [];
   const orders: unknown[][] = [];
-  const client = {
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
+  const select = vi
+    .fn()
+    .mockImplementation((_columns: string, options?: unknown) => {
+      if (options) return Promise.resolve({ count: total, error });
+      const query = {
         order: vi.fn((...args: unknown[]) => {
           orders.push(args);
-          return {
-            order: vi.fn((...second: unknown[]) => {
-              orders.push(second);
-              return {
-                range: vi.fn(async (from: number, to: number) => {
-                  ranges.push([from, to]);
-                  const index = call++;
-                  return index === failAt
-                    ? { data: null, error: new Error("failed") }
-                    : { data: batches[index] ?? [], error: null };
-                }),
-              };
-            }),
-          };
+          return query;
         }),
-      })),
-    })),
-  };
+        range: vi.fn(async (from: number, to: number) => {
+          ranges.push([from, to]);
+          return { data: rows, error };
+        }),
+      };
+      return query;
+    });
+  const client = { from: vi.fn(() => ({ select })) };
   return { client: client as never, ranges, orders };
 }
 
 describe("loadSubjectCandidates", () => {
-  it("loads all batches with deterministic ordering and exact bigint values", async () => {
-    const first = Array.from({ length: 1000 }, (_, index) => ({
-      subject: `s${index}`,
-      count_text: "9223372036854775807",
-    }));
-    const second = [{ subject: "tie", count_text: "2" }];
-    const { client, ranges, orders } = clientWithBatches([first, second]);
-    const data = await loadSubjectCandidates(client);
-    expect(data).toHaveLength(1001);
-    expect(data[0].count).toBe("9223372036854775807");
-    expect(ranges).toEqual([
-      [0, 999],
-      [1000, 1999],
+  it("queries exact counts and only requested ranges with numeric ordering and stable ties", async () => {
+    const { client, ranges, orders } = mockClient([
+      { subject: "same", count_text: "9223372036854775807" },
     ]);
+    const result = await loadSubjectCandidates(
+      client,
+      2,
+      "occurrences",
+      "desc",
+    );
+    expect(result).toEqual({
+      candidates: [{ subject: "same", count: "9223372036854775807" }],
+      total: 41,
+      page: 2,
+    });
+    expect(ranges).toEqual([[20, 39]]);
     expect(orders).toEqual([
-      ["count", { ascending: false }],
-      ["subject", { ascending: true }],
       ["count", { ascending: false }],
       ["subject", { ascending: true }],
     ]);
   });
 
-  it("returns empty data and rejects later-batch failures instead of returning partial rows", async () => {
-    const empty = clientWithBatches([[]]);
-    await expect(loadSubjectCandidates(empty.client)).resolves.toEqual([]);
-    const later = clientWithBatches(
-      [
-        Array.from({ length: 1000 }, (_, i) => ({
-          subject: `${i}`,
-          count_text: "1",
-        })),
-      ],
-      1,
-    );
-    await expect(loadSubjectCandidates(later.client)).rejects.toThrow(
-      "Unable to load subject candidates",
-    );
+  it("supports candidate order and propagates count or row errors", async () => {
+    const { client, orders } = mockClient([]);
+    await loadSubjectCandidates(client, 1, "candidate", "desc");
+    expect(orders).toEqual([["subject", { ascending: false }]]);
+    const failed = mockClient([], 0, new Error("failure"));
+    await expect(
+      loadSubjectCandidates(failed.client, 1, "occurrences", "desc"),
+    ).rejects.toThrow("Unable to count");
+  });
+
+  it("does not range an unsafe out-of-range page and normalizes an empty dataset", async () => {
+    const outside = mockClient([], 41);
+    await expect(
+      loadSubjectCandidates(
+        outside.client,
+        Number.MAX_SAFE_INTEGER,
+        "candidate",
+        "desc",
+      ),
+    ).resolves.toEqual({
+      candidates: [],
+      total: 41,
+      page: Number.MAX_SAFE_INTEGER,
+    });
+    expect(outside.ranges).toEqual([]);
+    const empty = mockClient([], 0);
+    await expect(
+      loadSubjectCandidates(empty.client, 99, "occurrences", "desc"),
+    ).resolves.toEqual({ candidates: [], total: 0, page: 1 });
+    expect(empty.ranges).toEqual([]);
+  });
+
+  it("treats a missing exact count as unavailable", async () => {
+    const client = {
+      from: () => ({
+        select: () => Promise.resolve({ count: undefined, error: null }),
+      }),
+    } as never;
+    await expect(
+      loadSubjectCandidates(client, 1, "occurrences", "desc"),
+    ).rejects.toThrow("Unable to count subject candidates");
   });
 });
