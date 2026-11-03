@@ -9,6 +9,7 @@ import { loadImportBooks } from "@/lib/recommendations/import-books";
 import { lookupBookSubjects } from "@/lib/open-library/books-api";
 import { searchBySubjects, SearchFailure } from "@/lib/open-library/search-api";
 import { persistSubjectCandidates } from "@/lib/subjects/subject-candidates";
+import { persistRecommendations } from "@/lib/recommendations/persist";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
@@ -68,6 +69,22 @@ export async function POST(request: Request) {
   if (loaded.status === "missing")
     return Response.json({ error: "Import unavailable" }, { status: 404 });
   const books: Book[] = loaded.books;
+  const save = async (
+    recommendations: import("@/lib/recommendations-engine").OpenLibraryBook[],
+  ) => {
+    try {
+      const recommendationId = await persistRecommendations(
+        supabase,
+        importId,
+        recommendations,
+        deadline,
+      );
+      return Response.json({ ok: true, recommendationId, recommendations });
+    } catch (error) {
+      logFailure("recommendation-persistence", error);
+      return Response.json({ error: "Unavailable" }, { status: 503 });
+    }
+  };
   const candidates = candidateBooks(books);
   const sample = [...candidates];
   for (let i = sample.length - 1; i > 0; i--) {
@@ -80,7 +97,7 @@ export async function POST(request: Request) {
       status: "no-eligible-isbn",
       books: [],
     });
-    return Response.json({ ok: true });
+    return save([]);
   }
   let booksWithSubjects;
   try {
@@ -100,7 +117,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unavailable" }, { status: 503 });
   }
   const subjects = selectSubjects(booksWithSubjects);
-  if (!subjects.length) return Response.json({ ok: true, recommendations: [] });
+  if (!subjects.length) return save([]);
   let found;
   try {
     found = await searchBySubjects(
@@ -123,5 +140,5 @@ export async function POST(request: Request) {
       // Diagnostics must not affect recommendation delivery.
     }
   }
-  return Response.json({ ok: true, recommendations });
+  return save(recommendations);
 }
