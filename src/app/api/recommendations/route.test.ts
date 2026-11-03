@@ -70,7 +70,11 @@ beforeEach(() => {
   pages = [{ data: [], error: null }];
   getUser.mockResolvedValue({ data: { user: { id: "private-user" } } });
   rpc.mockImplementation(() => {
-    const result = Promise.resolve({ error: null }) as Promise<{
+    const result = Promise.resolve({
+      data: "b0000000-0000-0000-0000-000000000001",
+      error: null,
+    }) as Promise<{
+      data: string;
       error: unknown;
     }> & {
       abortSignal: (signal: AbortSignal) => Promise<{ error: unknown }>;
@@ -156,7 +160,11 @@ describe("POST /api/recommendations", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => {});
     const response = await post();
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, recommendations: [] });
+    expect(await response.json()).toEqual({
+      ok: true,
+      recommendationId: "b0000000-0000-0000-0000-000000000001",
+      recommendations: [],
+    });
     expect(provider).toHaveBeenCalledTimes(2);
     const url = new URL(String(provider.mock.calls[0][0]));
     expect(url.origin + url.pathname).toBe("https://openlibrary.org/api/books");
@@ -231,7 +239,11 @@ describe("POST /api/recommendations", () => {
       if (failure === "stream-timeout" || failure === "provider-timeout")
         await vi.advanceTimersByTimeAsync(40_000);
       const response = await responsePromise;
-      expect(await response.json()).toEqual({ ok: true, recommendations: [] });
+      expect(await response.json()).toEqual({
+        ok: true,
+        recommendationId: "b0000000-0000-0000-0000-000000000001",
+        recommendations: [],
+      });
       expect(JSON.stringify(log.mock.calls)).not.toContain("secret redirect");
       expect(JSON.stringify(log.mock.calls)).not.toContain(importId);
       expect(JSON.stringify(log.mock.calls)).not.toContain(
@@ -380,6 +392,7 @@ describe("POST /api/recommendations", () => {
     const result = await response.json();
     expect(result).toEqual({
       ok: true,
+      recommendationId: "b0000000-0000-0000-0000-000000000001",
       recommendations: [
         {
           key: "/works/OL2W",
@@ -559,7 +572,10 @@ describe("POST /api/recommendations", () => {
       new Response(JSON.stringify({})),
     );
     await post();
-    expect(rpc).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledWith("save_recommendations", {
+      p_import_run_id: importId,
+      p_books: [],
+    });
   });
 
   it("does not log non-success response bodies", async () => {
