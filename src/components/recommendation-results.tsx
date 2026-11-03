@@ -1,0 +1,219 @@
+"use client";
+
+import { RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+
+const books = [
+  [
+    "The Glass Observatory",
+    "Mara Ellison",
+    "2022",
+    "from-slate-950 via-indigo-950 to-orange-200",
+    "✦",
+  ],
+  [
+    "A Sea of Quiet Stars",
+    "Elias Rowan",
+    "2019",
+    "from-cyan-950 via-teal-800 to-sky-200",
+    "〰",
+  ],
+  [
+    "The Last Cartographer",
+    "Nora Vale",
+    "2024",
+    "from-amber-100 via-stone-300 to-yellow-900",
+    "⌖",
+  ],
+  [
+    "Under the Amber Moon",
+    "Theo Mercer",
+    "2021",
+    "from-orange-950 via-amber-700 to-yellow-200",
+    "☾",
+  ],
+  [
+    "The Atlas of Rain",
+    "Iris Cole",
+    "2020",
+    "from-slate-900 via-teal-700 to-cyan-100",
+    "⌁",
+  ],
+  [
+    "A Map of Borrowed Time",
+    "June Arden",
+    "2023",
+    "from-violet-950 via-indigo-800 to-rose-200",
+    "◷",
+  ],
+  [
+    "The Orchard at World's End",
+    "Caleb North",
+    "2018",
+    "from-emerald-950 via-green-700 to-lime-200",
+    "❋",
+  ],
+  [
+    "When the Mountains Sing",
+    "Lena Hart",
+    "2022",
+    "from-blue-950 via-sky-700 to-amber-100",
+    "⌁",
+  ],
+  [
+    "The Archive of Small Things",
+    "Mina Bell",
+    "2021",
+    "from-rose-950 via-pink-700 to-orange-100",
+    "✧",
+  ],
+  [
+    "A Light Beneath the City",
+    "R. J. Ellis",
+    "2024",
+    "from-neutral-950 via-stone-700 to-yellow-200",
+    "✦",
+  ],
+  [
+    "The Wintering Sea",
+    "Sofia Wren",
+    "2017",
+    "from-blue-950 via-indigo-700 to-slate-200",
+    "❄",
+  ],
+  [
+    "Where the Wild Hours Go",
+    "Amir Sol",
+    "2023",
+    "from-fuchsia-950 via-purple-700 to-pink-200",
+    "✺",
+  ],
+] as const;
+
+export function RecommendationResults() {
+  const [page, setPage] = useState(0);
+  const pageCount = Math.ceil(books.length / 4);
+  const visibleBooks = books.slice(page * 4, page * 4 + 4);
+
+  function reset() {
+    setPage(0);
+  }
+
+  return (
+    <section aria-label="Book recommendations" className="space-y-8">
+      <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold tracking-[0.16em] text-emerald-800 uppercase">
+            Recommendations
+          </p>
+          <h1 className="font-serif text-3xl font-semibold tracking-tight sm:text-4xl">
+            Your book recommendations
+          </h1>
+          <p className="text-muted-foreground">
+            12 books selected based on your reading preferences.
+          </p>
+        </div>
+        <Button variant="outline" className="w-fit" onClick={reset}>
+          <RefreshCw aria-hidden="true" /> Generate again
+        </Button>
+      </div>
+      <div className="relative">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {visibleBooks.map(([title, author, year, color, art]) => (
+            <article
+              key={title}
+              className="min-w-0 rounded-xl border bg-card p-3 shadow-sm"
+            >
+              <div
+                aria-hidden="true"
+                className={`flex aspect-[3/4] items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br ${color} p-5 text-center text-white`}
+              >
+                <div className="flex size-full flex-col items-center justify-center border border-white/35 px-3 shadow-inner">
+                  <span className="mb-4 text-3xl opacity-80">{art}</span>
+                  <span className="font-serif text-xl leading-tight tracking-wide uppercase">
+                    {title}
+                  </span>
+                  <span className="mt-4 text-[10px] tracking-[0.2em] uppercase">
+                    {author}
+                  </span>
+                </div>
+              </div>
+              <h2 className="mt-3 line-clamp-2 font-serif text-lg leading-snug font-semibold">
+                {title}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">{author}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{year}</p>
+            </article>
+          ))}
+        </div>
+        <div className="absolute -left-3 top-1/2 hidden -translate-y-1/2 sm:block">
+          <Button
+            aria-label="Previous recommendations"
+            variant="outline"
+            size="icon"
+            className="rounded-full bg-background shadow"
+            disabled={page === 0}
+            onClick={() => setPage((current) => Math.max(0, current - 1))}
+          >
+            <ChevronLeft />
+          </Button>
+        </div>
+        <div className="absolute -right-3 top-1/2 hidden -translate-y-1/2 sm:block">
+          <Button
+            aria-label="Next recommendations"
+            variant="outline"
+            size="icon"
+            className="rounded-full bg-background shadow"
+            disabled={page === pageCount - 1}
+            onClick={() =>
+              setPage((current) => Math.min(pageCount - 1, current + 1))
+            }
+          >
+            <ChevronRight />
+          </Button>
+        </div>
+      </div>
+      <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+        <p aria-live="polite" className="text-sm text-muted-foreground">
+          {page * 4 + 1}–{Math.min(page * 4 + 4, books.length)} of 12
+        </p>
+        <div
+          aria-label="Recommendation pages"
+          className="flex items-center gap-2"
+        >
+          {Array.from({ length: pageCount }, (_, index) => (
+            <button
+              key={index}
+              type="button"
+              aria-label={`Show recommendations ${index + 1}`}
+              aria-current={page === index ? "page" : undefined}
+              onClick={() => setPage(index)}
+              className={`size-3 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${page === index ? "bg-emerald-800" : "bg-muted-foreground/30"}`}
+            />
+          ))}
+        </div>
+        <div className="flex gap-2 sm:hidden">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === 0}
+            onClick={() => setPage((value) => Math.max(0, value - 1))}
+          >
+            <ChevronLeft /> Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page === pageCount - 1}
+            onClick={() =>
+              setPage((value) => Math.min(pageCount - 1, value + 1))
+            }
+          >
+            Next <ChevronRight />
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
