@@ -1,6 +1,6 @@
 ---
 name: UI Testing
-description: Use Playwright to log in to the local Next Read app with the ignored .sampleuser account and test the UI, responsive layouts, keyboard interactions, and browser errors.
+description: Use Playwright to test the local Next Read app, including authenticated UI, responsive layouts, keyboard interactions, and browser errors. In a separate worktree, copy the missing ignored .sampleuser file from the main development worktree before connecting Playwright MCP.
 ---
 
 # Local authenticated UI testing
@@ -10,10 +10,19 @@ Use this workflow for direct browser verification, not as a replacement for Vite
 ## Prepare
 
 1. Work from the repository root, not this skill's directory. Read `AGENTS.md`, `IMPLEMENTATION_PLAN.md`, and the relevant components for the requested test. Existing uncommitted work may change expected behavior; do not overwrite it.
-2. Discover the available Playwright tools and read their schemas. Prefer the existing browser integration; this project has no configured Playwright/E2E runner. Do not install one or change dependencies just to perform these checks.
-3. Check that `.sampleuser` exists and is ignored by Git, without printing its contents. It contains `TEST_USERNAME` (the email address) and `TEST_PASSWORD`. Check that local Supabase configuration is present without displaying env values. If either is unavailable, report the blocker; never invent credentials or use a service-role key.
+2. Before connecting Playwright MCP, check that `.sampleuser` exists and is ignored by Git, without printing its contents. In a separate worktree, if the file is missing, follow the worktree preparation below. It contains `TEST_USERNAME` (the email address) and `TEST_PASSWORD`. Check that local Supabase configuration is present without displaying env values. If either is unavailable, report the blocker; never invent credentials or use a service-role key.
+3. Discover the available Playwright tools and read their schemas. Prefer the existing browser integration; this project has no configured Playwright/E2E runner. Do not install one or change dependencies just to perform these checks.
 4. Reuse the project's running development server if available. Otherwise start `npm run dev` as a background process and use the local URL reported by Next.js; do not assume port 3000 if it is occupied. Wait for readiness, not an arbitrary sleep. Stop only a server you started when finished.
 5. Use only the approved local app origin for these credentials. Stop if login redirects to an unexpected origin. A local app can still use a shared Supabase database: local browsing does not imply disposable data.
+
+## Prepare credentials in a separate worktree
+
+Git does not copy ignored files into new worktrees. This project's `--secrets .sampleuser` option makes Playwright MCP fail at startup if that file is missing, even for unauthenticated browsing.
+
+- Identify the main development worktree using `git worktree list --porcelain` (the first worktree entry), rather than hard-coding a developer-specific path.
+- If the current worktree differs from the main worktree and its root `.sampleuser` is absent, copy the main worktree's root `.sampleuser` directly to the current worktree's root using filesystem commands. Confirm the source is a regular file and both source and destination paths are ignored by Git before copying. Do not print or read its contents into tool output, and do not overwrite an existing destination (including a symlink).
+- Give the copied file owner-only read/write permissions (`0600`). Never stage or commit it. If the source is missing, the paths are not ignored, or copying is denied, stop and report the blocker rather than bypassing safeguards.
+- Prepare the file before the MCP connection. If startup already failed, ask the user to use `/reload` and check `/mcps` after the file is in place.
 
 ## Handle credentials privately
 
