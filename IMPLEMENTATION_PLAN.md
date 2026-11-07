@@ -23,7 +23,7 @@ This document describes the current demo behavior and acceptance scope.
 | --- | --- |
 | `/` | Minimal splash page explaining the application. |
 | `/app/import` | Goodreads CSV import screen. |
-| `/app/imports` | Saved-import review. |
+| `/app/history` | Import and recommendation history. |
 | `/app/login` | Email/password sign-in. |
 | `/app/recommendations` | Recommendation configuration screen, including the import query and controls. |
 | `/app/recommendation-results` | Direct-URL, protected visual-only curated book results demo. |
@@ -34,7 +34,9 @@ This document describes the current demo behavior and acceptance scope.
 
 The import, recommendation configuration, and recommendation-results views are independently accessible without a navigation prerequisite. `/app/recommendations` loads the signed-in user's import metadata and recommendation controls; `/app/recommendation-results` directly shows 12 fictional demo books without an API call or import. Live/personalized recommendation results remain out of scope. The admin subject page requires a verified user whose trusted `app_metadata.is_admin` is boolean `true`.
 
-Route sources are `src/app/page.tsx`, `src/app/app/login/page.tsx`, `src/app/app/(protected)/import/page.tsx`, `src/app/app/(protected)/imports/page.tsx`, `src/app/app/(protected)/recommendations/page.tsx`, `src/app/app/(protected)/recommendation-results/page.tsx`, `src/app/auth/callback/route.ts`, `src/app/api/import/route.ts`, and `src/app/api/recommendations/route.ts`. The `app` directory segment and protected route group produce the `/app/...` URLs.
+The history view displays paginated import records and recommendation generations independently. Recommendation rows include the source import filename (or “Filename unavailable”), date, and a link to the saved recommendations; both history tables right-align their action columns.
+
+Route sources are `src/app/page.tsx`, `src/app/app/login/page.tsx`, `src/app/app/(protected)/import/page.tsx`, `src/app/app/(protected)/history/page.tsx`, `src/app/app/(protected)/recommendations/page.tsx`, `src/app/app/(protected)/recommendation-results/page.tsx`, `src/app/auth/callback/route.ts`, `src/app/api/import/route.ts`, and `src/app/api/recommendations/route.ts`. The `app` directory segment and protected route group produce the `/app/...` URLs.
 
 ## 4. Component and styling rules
 

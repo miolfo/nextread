@@ -33,7 +33,10 @@
   ```
 
 - Focus tests with `npm test -- src/components/recommendation-controls.test.tsx`; append `-t "moves genres"` to select a test by name.
-- Vitest uses jsdom and `src/test/setup.ts` for jest-dom, cleanup, and DOM mocks. There is no configured Playwright/E2E runner. UI changes also warrant browser checks at 375, 768, and 1440px plus keyboard and console checks.
+- Vitest uses jsdom and `src/test/setup.ts` for jest-dom, cleanup, and DOM mocks. There is no configured Playwright/E2E runner.
+- After every application change, always load and follow the `ui-testing` skill and use Playwright to verify the affected routes and functionality, including authenticated flows when relevant. UI changes require checks at 375, 768, and 1440px plus keyboard checks. Documentation-only changes do not require browser testing.
+- During Playwright verification, check for browser console errors, uncaught runtime errors, Next.js error overlays, and relevant Next.js development-server errors. Do not claim functionality is verified or that there are no Next.js errors unless these checks actually ran and passed.
+- Always notify the user if Playwright testing fails, is blocked, or is skipped. State which checks did not pass or could not run and the specific, sanitized reason (for example, missing worktree credentials/configuration, MCP connection failure, or an application error). Distinguish failed checks from unexecuted checks; never silently omit them or report blocked checks as passed. Follow the skill's credential and worktree preparation before declaring authenticated testing blocked.
 - `npm run format` rewrites the nonignored tree; prefer focused formatting for narrow edits. Formatting excludes the plan, designs, lockfile, and `.opencode` tooling.
 - Do not hand-edit generated `.next/`, `next-env.d.ts`, or `tsconfig.tsbuildinfo`.
 

@@ -42,12 +42,12 @@ export function PageLayout({
               Import
             </Link>
             <Link
-              aria-current={pathname === "/app/imports" ? "page" : undefined}
+              aria-current={pathname === "/app/history" ? "page" : undefined}
               className="flex items-center gap-2 rounded-sm text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring aria-[current=page]:text-emerald-900 aria-[current=page]:font-semibold"
-              href="/app/imports"
+              href="/app/history"
             >
               <Layers aria-hidden="true" className="size-4" />
-              Import history
+              History
             </Link>
             <Link
               aria-current={

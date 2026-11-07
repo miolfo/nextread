@@ -1,24 +1,34 @@
 import { render, screen, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
-import ImportsPage from "@/app/app/(protected)/imports/page";
+import ImportsPage from "@/app/app/(protected)/history/page";
 import { ImportHistory } from "@/components/import-history";
 
-const { mockFrom, mockRuns, mockIn, mockFilter, mockRunOrder, mockBookOrder } =
-  vi.hoisted(() => ({
-    mockFrom: vi.fn(),
-    mockRuns: vi.fn(),
-    mockIn: vi.fn(),
-    mockFilter: vi.fn(),
-    mockRunOrder: vi.fn(),
-    mockBookOrder: vi.fn(),
-  }));
+const {
+  mockFrom,
+  mockRuns,
+  mockIn,
+  mockFilter,
+  mockRunOrder,
+  mockBookOrder,
+  mockRecommendations,
+  mockRecommendationOrder,
+} = vi.hoisted(() => ({
+  mockFrom: vi.fn(),
+  mockRuns: vi.fn(),
+  mockIn: vi.fn(),
+  mockFilter: vi.fn(),
+  mockRunOrder: vi.fn(),
+  mockBookOrder: vi.fn(),
+  mockRecommendations: vi.fn(),
+  mockRecommendationOrder: vi.fn(),
+}));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ from: mockFrom }),
 }));
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/app/imports",
+  usePathname: () => "/app/history",
   useRouter: () => ({ replace: vi.fn(), refresh: vi.fn() }),
 }));
 
@@ -46,25 +56,38 @@ const books = [
 beforeEach(() => {
   vi.clearAllMocks();
   mockRuns.mockResolvedValue({ data: imports, error: null });
+  mockRecommendations.mockResolvedValue({ data: [], error: null });
   mockIn.mockResolvedValue({ data: books, error: null });
   mockRunOrder.mockImplementation(() => ({
     order: mockRunOrder,
     range: mockRuns,
   }));
+  mockRecommendationOrder.mockImplementation(() => ({
+    order: mockRecommendationOrder,
+    range: mockRecommendations,
+  }));
   mockBookOrder.mockImplementation(() => ({ range: mockIn }));
   mockFilter.mockImplementation(() => ({ order: mockBookOrder }));
   mockFrom.mockImplementation((table: string) =>
-    table === "import_runs"
-      ? { select: () => ({ order: mockRunOrder }) }
-      : { select: () => ({ in: mockFilter }) },
+    table === "recommendations"
+      ? {
+          select: (columns: string) => {
+            expect(columns).toContain("import_runs(original_filename)");
+            return { order: mockRecommendationOrder };
+          },
+        }
+      : table === "import_runs"
+        ? { select: () => ({ order: mockRunOrder }) }
+        : { select: () => ({ in: mockFilter }) },
   );
 });
 
 it("renders actual import records and aggregates stored book data", async () => {
   render(await ImportsPage());
 
-  expect(mockFrom).toHaveBeenNthCalledWith(1, "import_runs");
-  expect(mockFrom).toHaveBeenNthCalledWith(2, "imported_books");
+  expect(mockFrom).toHaveBeenNthCalledWith(1, "recommendations");
+  expect(mockFrom).toHaveBeenNthCalledWith(2, "import_runs");
+  expect(mockFrom).toHaveBeenNthCalledWith(3, "imported_books");
   expect(mockFilter).toHaveBeenCalledWith("import_run_id", [
     "run-uuid-1",
     "run-uuid-2",
@@ -76,13 +99,11 @@ it("renders actual import records and aggregates stored book data", async () => 
   });
   expect(mockRunOrder).toHaveBeenNthCalledWith(2, "id", { ascending: true });
   expect(mockBookOrder).toHaveBeenCalledWith("id", { ascending: true });
-  expect(
-    screen.getByRole("heading", { name: "Imported files" }),
-  ).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "History" })).toBeInTheDocument();
   expect(
     screen.getByRole("link", { name: "Import another Goodreads file" }),
   ).toHaveAttribute("href", "/app/import");
-  expect(screen.getByRole("link", { name: "Import history" })).toHaveAttribute(
+  expect(screen.getByRole("link", { name: "History" })).toHaveAttribute(
     "aria-current",
     "page",
   );
@@ -129,7 +150,75 @@ it("shows a helpful empty state without querying nonexistent book rows", async (
     screen.getByRole("link", { name: "Import a Goodreads file" }),
   ).toHaveAttribute("href", "/app/import");
   expect(screen.queryByRole("table")).not.toBeInTheDocument();
-  expect(mockFrom).toHaveBeenCalledTimes(1);
+  expect(mockFrom).toHaveBeenCalledTimes(2);
+});
+
+it("paginates every recommendation generation in stable newest-first order", async () => {
+  const generations = Array.from({ length: 1001 }, (_, index) => ({
+    id: `recommendation-${index}`,
+    created_at: new Date(
+      Date.UTC(2026, 9, 14, 10, 24) - index * 1000,
+    ).toISOString(),
+    import_runs: [{ original_filename: "history.csv" }],
+  }));
+  mockRecommendations.mockImplementation(async (from: number) => ({
+    data: generations.slice(from, from + 1000),
+    error: null,
+  }));
+
+  render(await ImportsPage());
+
+  expect(mockRecommendationOrder).toHaveBeenCalledWith("created_at", {
+    ascending: false,
+  });
+  expect(mockRecommendationOrder).toHaveBeenCalledWith("id", {
+    ascending: true,
+  });
+  expect(mockRecommendations.mock.calls).toEqual([
+    [0, 999],
+    [1000, 1999],
+  ]);
+  expect(
+    screen.getAllByRole("link", { name: "View recommendations" }),
+  ).toHaveLength(1001);
+  expect(
+    screen.getAllByRole("link", { name: "View recommendations" })[0],
+  ).toHaveAttribute(
+    "href",
+    "/app/recommendations?recommendationId=recommendation-0",
+  );
+}, 15000);
+
+it("keeps import history visible when recommendation history fails", async () => {
+  mockRecommendations.mockResolvedValue({
+    data: null,
+    error: new Error("query failed"),
+  });
+  render(await ImportsPage());
+  expect(
+    screen.getByRole("region", { name: "Import summary" }),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "couldn’t load your recommendation history",
+  );
+  expect(
+    screen.queryByText("No recommendation history yet"),
+  ).not.toBeInTheDocument();
+});
+
+it("keeps recommendation history visible when import history fails", async () => {
+  mockRuns.mockResolvedValue({ data: null, error: new Error("query failed") });
+  mockRecommendations.mockResolvedValue({
+    data: [{ id: "saved-set", created_at: "2026-10-14T10:24:00.000Z" }],
+    error: null,
+  });
+  render(await ImportsPage());
+  expect(
+    screen.getByRole("heading", { name: "Import history unavailable" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByRole("link", { name: "View recommendations" }),
+  ).toHaveAttribute("href", "/app/recommendations?recommendationId=saved-set");
 });
 
 it.each(["import_runs", "imported_books"])(
@@ -152,12 +241,12 @@ it.each(["import_runs", "imported_books"])(
     expect(
       screen.getByRole("heading", { name: "Import history unavailable" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("alert")).toHaveTextContent(
+    expect(screen.getAllByRole("alert")[0]).toHaveTextContent(
       "We couldn’t load your import history",
     );
     expect(screen.getByRole("link", { name: "Retry" })).toHaveAttribute(
       "href",
-      "/app/imports",
+      "/app/history",
     );
     expect(screen.queryByText("No imports yet")).not.toBeInTheDocument();
     expect(
@@ -189,9 +278,9 @@ it("paginates books in stable id order without dropping or repeating rows in sta
     3,
   );
   expect(within(summary).getByText("4")).toBeInTheDocument();
-  expect(within(screen.getByRole("table")).getAllByText("1001")).toHaveLength(
-    3,
-  );
+  expect(
+    within(screen.getAllByRole("table")[0]).getAllByText("1001"),
+  ).toHaveLength(3);
 });
 
 it("batches imported-book queries when there are more than 100 import runs", async () => {
@@ -271,7 +360,7 @@ it("paginates books independently for multiple run batches and aggregates every 
   expect(within(summary).getByText("4")).toBeInTheDocument();
   expect(within(summary).getByText("2", { selector: "p" })).toBeInTheDocument();
 
-  const rows = within(screen.getByRole("table")).getAllByRole("row");
+  const rows = within(screen.getAllByRole("table")[0]).getAllByRole("row");
   const firstBatchRow = within(rows[1])
     .getAllByRole("cell")
     .map((cell) => cell.textContent);

@@ -50,7 +50,7 @@ export function ImportHistory({
         <Button
           nativeButton={false}
           role="link"
-          render={<Link href="/app/imports" />}
+          render={<Link href="/app/history" />}
           variant="outline"
         >
           Retry
@@ -103,9 +103,7 @@ export function ImportHistory({
     <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Imported files
-          </h1>
+          <h1 className="text-3xl font-semibold tracking-tight">History</h1>
           <p className="max-w-3xl text-base leading-relaxed text-muted-foreground">
             Here are all the files you’ve imported from Goodreads. You can
             import more files or view the details of each import.
@@ -176,7 +174,10 @@ export function ImportHistory({
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="border-b bg-muted/50">
                 <tr>
-                  <th className="px-4 py-3 font-medium" scope="col">
+                  <th
+                    className="px-4 py-3 text-right font-medium whitespace-nowrap"
+                    scope="col"
+                  >
                     File name
                   </th>
                   <th className="px-4 py-3 font-medium" scope="col">
@@ -238,7 +239,7 @@ export function ImportHistory({
                       <td className="px-4 py-4">{itemRatings.length}</td>
                       <td className="px-4 py-4">{itemAverage}</td>
                       <td className="px-4 py-4">{itemAuthors.size}</td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 text-right whitespace-nowrap">
                         <Button
                           nativeButton={false}
                           role="link"

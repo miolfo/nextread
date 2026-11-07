@@ -5,11 +5,41 @@ import {
 } from "@/components/import-history";
 import { PageLayout } from "@/components/page-layout";
 import { createClient } from "@/lib/supabase/server";
+import {
+  RecommendationHistory,
+  type RecommendationRun,
+} from "@/components/recommendation-history";
 
 export default async function ImportsPage() {
   const supabase = await createClient();
   const pageSize = 1000;
   const runBatchSize = 100;
+  const recommendations: RecommendationRun[] = [];
+  let recommendationError = false;
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase
+      .from("recommendations")
+      .select("id, created_at, import_runs(original_filename)")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) {
+      recommendationError = true;
+      break;
+    }
+    recommendations.push(
+      ...(data ?? []).map((recommendation) => ({
+        id: recommendation.id,
+        created_at: recommendation.created_at,
+        original_filename:
+          (
+            recommendation.import_runs as
+              { original_filename: string | null }[] | null
+          )?.[0]?.original_filename ?? null,
+      })),
+    );
+    if (!data || data.length < pageSize) break;
+  }
   const runs: Omit<ImportRun, "books">[] = [];
   for (let offset = 0; ; offset += pageSize) {
     const { data, error } = await supabase
@@ -23,6 +53,10 @@ export default async function ImportsPage() {
       return (
         <PageLayout>
           <ImportHistory error />
+          <RecommendationHistory
+            recommendations={recommendations}
+            error={recommendationError}
+          />
         </PageLayout>
       );
     }
@@ -50,6 +84,10 @@ export default async function ImportsPage() {
         return (
           <PageLayout>
             <ImportHistory error />
+            <RecommendationHistory
+              recommendations={recommendations}
+              error={recommendationError}
+            />
           </PageLayout>
         );
       }
@@ -68,6 +106,10 @@ export default async function ImportsPage() {
   return (
     <PageLayout>
       <ImportHistory imports={imports} />
+      <RecommendationHistory
+        recommendations={recommendations}
+        error={recommendationError}
+      />
     </PageLayout>
   );
 }

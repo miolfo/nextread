@@ -28,7 +28,7 @@ it("renders sign out in app navigation", () => {
 
   expect(Array.from(navigationItems).map((item) => item.textContent)).toEqual([
     "Import",
-    "Import history",
+    "History",
     "Recommendations",
     "Sign out",
   ]);
@@ -37,9 +37,9 @@ it("renders sign out in app navigation", () => {
     "border-emerald-900/20",
     "cursor-pointer",
   );
-  expect(screen.getByRole("link", { name: /Import history/ })).toHaveAttribute(
+  expect(screen.getByRole("link", { name: /History/ })).toHaveAttribute(
     "href",
-    "/app/imports",
+    "/app/history",
   );
 });
 
