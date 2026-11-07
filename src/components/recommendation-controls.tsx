@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { BookOpen, Hash, Sparkles, Target } from "lucide-react";
+import { BookOpen, Sparkles, Target } from "lucide-react";
 import { GenreSelector, type Genre } from "@/components/genre-selector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -14,7 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const COUNTS = ["5", "10", "20"];
 const SORTS = [
   { value: "relevance", label: "Relevance" },
   { value: "rating", label: "Highest rated" },
@@ -41,7 +40,6 @@ export function RecommendationControls({
   imports?: RecommendationImport[];
   importError?: boolean;
 }) {
-  const [count, setCount] = useState("10");
   const [sort, setSort] =
     useState<(typeof SORTS)[number]["value"]>("relevance");
   const [selectedImport, setSelectedImport] = useState("");
@@ -101,32 +99,6 @@ export function RecommendationControls({
   return (
     <Card className="mx-auto w-full max-w-4xl">
       <CardContent className="space-y-0 p-0">
-        <ControlRow
-          icon={Hash}
-          title="Number of recommendations"
-          description="The search currently returns up to 10 books."
-        >
-          <Select
-            disabled
-            value={count}
-            onValueChange={(value) => value && setCount(value)}
-          >
-            <SelectTrigger
-              aria-label="Number of recommendations"
-              className="w-full"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {COUNTS.map((item) => (
-                <SelectItem key={item} value={item}>
-                  {item}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </ControlRow>
-
         <ControlRow
           icon={Target}
           title="Sorted by"
@@ -252,7 +224,7 @@ function ControlRow({
   description,
   children,
 }: {
-  icon: typeof Hash;
+  icon: typeof Target;
   title: string;
   description: string;
   children: ReactNode;

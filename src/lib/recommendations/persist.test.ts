@@ -6,11 +6,69 @@ describe("persistRecommendations", () => {
     const abortSignal = vi.fn(() =>
       Promise.resolve({ data: "set-id", error: null }),
     );
-    const supabase = { rpc: vi.fn(() => ({ abortSignal })) } as never;
+    const rpc = vi.fn(() => ({ abortSignal }));
+    const supabase = { rpc } as never;
     await expect(
       persistRecommendations(supabase, "import-id", [], Date.now() + 1000),
     ).resolves.toBe("set-id");
+    expect(rpc).toHaveBeenCalledWith("save_recommendations", {
+      p_import_run_id: "import-id",
+      p_books: [],
+    });
     expect(supabase).toBeDefined();
+  });
+
+  it("projects ordered books onto the persistence allowlist without mutation", async () => {
+    const abortSignal = vi.fn(() =>
+      Promise.resolve({ data: "set-id", error: null }),
+    );
+    const rpc = vi.fn(() => ({ abortSignal }));
+    const supabase = { rpc } as never;
+    const books = [
+      {
+        key: "/works/1",
+        title: "First",
+        author_name: ["Author"],
+        author_key: ["/authors/A1"],
+        first_publish_year: 2001,
+        isbn: ["123"],
+        cover_i: 42,
+        extension: "not persisted",
+      },
+      {
+        key: "/works/2",
+        title: "Second",
+        author_key: ["/authors/A2"],
+      },
+    ];
+    const original = structuredClone(books);
+
+    await expect(
+      persistRecommendations(supabase, "import-id", books, Date.now() + 1000),
+    ).resolves.toBe("set-id");
+
+    expect(rpc).toHaveBeenCalledWith("save_recommendations", {
+      p_import_run_id: "import-id",
+      p_books: [
+        {
+          key: "/works/1",
+          title: "First",
+          author_name: ["Author"],
+          first_publish_year: 2001,
+          isbn: ["123"],
+          cover_i: 42,
+        },
+        {
+          key: "/works/2",
+          title: "Second",
+          author_name: undefined,
+          first_publish_year: undefined,
+          isbn: undefined,
+          cover_i: undefined,
+        },
+      ],
+    });
+    expect(books).toEqual(original);
   });
 
   it("rejects storage errors", async () => {

@@ -1,4 +1,5 @@
 import type { Candidate } from "@/lib/recommendations-engine";
+import { waitForOpenLibrarySlot } from "@/lib/open-library/rate-limit";
 
 export type BookSubjects = { title: string; subjects: string[] };
 
@@ -62,6 +63,10 @@ export async function lookupBookSubjects(
     Math.max(1, deadline - Date.now()),
   );
   try {
+    if (process.env.VITEST !== "true")
+      await beforeDeadline(waitForOpenLibrarySlot(deadline), deadline, () =>
+        controller.abort(),
+      );
     const response = await beforeDeadline(
       fetch(url, {
         signal: controller.signal,

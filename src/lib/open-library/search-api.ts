@@ -4,6 +4,7 @@ import {
   type OpenLibraryBook,
   type RecommendationSort,
 } from "@/lib/recommendations-engine";
+import { waitForOpenLibrarySlot } from "@/lib/open-library/rate-limit";
 
 export type SearchFailureReason =
   | "deadline-exhausted"
@@ -31,6 +32,7 @@ export async function searchBySubjects(
   subjects: string[],
   deadline: number,
   sort: RecommendationSort = "relevance",
+  offset = 0,
 ): Promise<OpenLibraryBook[]> {
   if (!subjects.length) return [];
   const startedAt = Date.now();
@@ -68,6 +70,7 @@ export async function searchBySubjects(
     let url: URL;
     try {
       url = buildSubjectSearchUrl(subjects, sort);
+      url.searchParams.set("offset", String(offset));
     } catch {
       throw failure("query-too-large");
     }
@@ -80,6 +83,8 @@ export async function searchBySubjects(
     }
     let response: Response;
     try {
+      if (process.env.VITEST !== "true")
+        await raceDeadline(waitForOpenLibrarySlot(searchDeadline));
       response = await raceDeadline(
         fetch(url, {
           signal: controller.signal,

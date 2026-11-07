@@ -3,6 +3,7 @@ export type Book = {
   isbn: string | null;
   isbn13: string | null;
   my_rating: string | null;
+  author?: string | null;
 };
 export type Candidate = { title: string; isbn: string };
 
@@ -12,6 +13,7 @@ export type OpenLibraryBook = {
   key: string;
   title: string;
   author_name?: string[];
+  author_key?: string[];
   first_publish_year?: number;
   isbn?: string[];
   cover_i?: number;
@@ -95,7 +97,7 @@ export function buildSubjectSearchUrl(
     .map((key) => `subject_key:"${key.replace(/[\\"]/g, "\\$&")}"`)
     .join(" OR ");
   url.searchParams.set("q", `(${query}) AND language:eng`);
-  url.searchParams.set("limit", "10");
+  url.searchParams.set("limit", "50");
   if (sort === "rating") {
     url.searchParams.set("sort", "rating");
     url.searchParams.set("ratings_count", "[10 TO *]");
@@ -104,7 +106,7 @@ export function buildSubjectSearchUrl(
   }
   url.searchParams.set(
     "fields",
-    "key,title,author_name,first_publish_year,isbn,cover_i",
+    "key,title,author_name,author_key,first_publish_year,isbn,cover_i",
   );
   if (url.href.length > 8_192)
     throw new Error("subject search query exceeds limit");
@@ -116,7 +118,7 @@ export function validateSearchBooks(payload: unknown): OpenLibraryBook[] {
     return [];
   const docs = (payload as { docs?: unknown }).docs;
   if (!Array.isArray(docs)) return [];
-  return docs.slice(0, 10).flatMap((raw) => {
+  return docs.slice(0, 50).flatMap((raw) => {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
     const book = raw as Record<string, unknown>;
     if (
@@ -140,10 +142,16 @@ export function validateSearchBooks(payload: unknown): OpenLibraryBook[] {
           )
           .slice(0, 20)
       : undefined;
+    const authorKeys = Array.isArray(book.author_key)
+      ? book.author_key
+          .filter((value): value is string => typeof value === "string")
+          .slice(0, 10)
+      : undefined;
     const result: OpenLibraryBook = {
       key: book.key,
       title: book.title.slice(0, 300),
       ...(authors?.length ? { author_name: authors } : {}),
+      ...(authorKeys?.length ? { author_key: authorKeys } : {}),
       ...(Number.isInteger(book.first_publish_year) &&
       (book.first_publish_year as number) >= 0
         ? { first_publish_year: book.first_publish_year as number }
@@ -171,11 +179,31 @@ export function excludeImportedAndDeduplicate(
   imported: Book[],
 ): OpenLibraryBook[] {
   const importedIsbns = new Set(
+    imported.flatMap((book) =>
+      [book.isbn, book.isbn13].flatMap((value) => {
+        const isbn = normalizeIsbn(value);
+        return isbn ? [isbn] : [];
+      }),
+    ),
+  );
+  const normalizeText = (value: string) =>
+    value
+      .normalize("NFKC")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .trim()
+      .replace(/\s+/g, " ");
+  const importedTitleAuthors = new Set(
     imported.flatMap((book) => {
-      const isbn = normalizeIsbn(book.isbn13) ?? normalizeIsbn(book.isbn);
-      return isbn ? [isbn] : [];
+      const title = book.title ? normalizeText(book.title) : "";
+      const author =
+        "author" in book && typeof book.author === "string"
+          ? normalizeText(book.author)
+          : "";
+      return title && author ? [`${title}\u0000${author}`] : [];
     }),
   );
+  const seenAuthors = new Set<string>();
   const works = new Set<string>();
   return books
     .filter((book) => {
@@ -184,7 +212,24 @@ export function excludeImportedAndDeduplicate(
       const ids = (completeIsbns.get(book) ?? book.isbn ?? [])
         .map(normalizeIsbn)
         .filter((value): value is string => value !== null);
-      return !ids.some((id) => importedIsbns.has(id));
+      if (ids.some((id) => importedIsbns.has(id))) return false;
+      const names = (book.author_name ?? []).map(normalizeText).filter(Boolean);
+      if (
+        names.some((name) =>
+          importedTitleAuthors.has(`${normalizeText(book.title)}\u0000${name}`),
+        )
+      )
+        return false;
+      const authors = [
+        ...(book.author_key ?? [])
+          .filter((key) => /^\/authors\/OL\d+A$/.test(key))
+          .map((key) => `key:${key}`),
+        ...names.map((name) => `name:${name}`),
+      ];
+      if (!authors.length || authors.some((author) => seenAuthors.has(author)))
+        return false;
+      authors.forEach((author) => seenAuthors.add(author));
+      return true;
     })
     .slice(0, 10);
 }

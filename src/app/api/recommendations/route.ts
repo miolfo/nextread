@@ -118,18 +118,32 @@ export async function POST(request: Request) {
   }
   const subjects = selectSubjects(booksWithSubjects);
   if (!subjects.length) return save([]);
-  let found;
-  try {
-    found = await searchBySubjects(
-      subjects,
-      deadline,
-      (sort ?? "relevance") as RecommendationSort,
-    );
-  } catch (error) {
-    logFailure("open-library-search", error);
-    return Response.json({ error: "Unavailable" }, { status: 503 });
+  const searchCandidates: import("@/lib/recommendations-engine").OpenLibraryBook[] =
+    [];
+  let recommendations: import("@/lib/recommendations-engine").OpenLibraryBook[] =
+    [];
+  for (
+    let page = 0;
+    page < (sort === "random" ? 1 : 3) && recommendations.length < 10;
+    page++
+  ) {
+    try {
+      const batch = await searchBySubjects(
+        subjects,
+        deadline,
+        (sort ?? "relevance") as RecommendationSort,
+        page * 50,
+      );
+      searchCandidates.push(...batch);
+      recommendations = excludeImportedAndDeduplicate(searchCandidates, books);
+      if (batch.length < 50) break;
+    } catch (error) {
+      logFailure("open-library-search", error);
+      if (!recommendations.length)
+        return Response.json({ error: "Unavailable" }, { status: 503 });
+      break;
+    }
   }
-  const recommendations = excludeImportedAndDeduplicate(found, books);
   if (process.env.NODE_ENV === "development") {
     try {
       console.log(

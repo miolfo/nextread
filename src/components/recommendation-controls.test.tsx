@@ -24,7 +24,7 @@ const imports = [
 ];
 
 describe("Recommendation controls", () => {
-  it("shows import metadata and keeps count, sort, and selection local", async () => {
+  it("shows import metadata and keeps sort and selection local", async () => {
     const user = userEvent.setup();
     const { unmount } = render(<RecommendationControls imports={imports} />);
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
@@ -32,7 +32,9 @@ describe("Recommendation controls", () => {
     expect(
       screen.getByRole("button", { name: "Generate recommendations" }),
     ).toHaveAttribute("type", "button");
-    expect(screen.getByLabelText("Number of recommendations")).toBeDisabled();
+    expect(
+      screen.queryByLabelText("Number of recommendations"),
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole("combobox", { name: "Import to use" }));
     expect(
       await screen.findByRole("option", { name: /library.csv/ }),
@@ -44,8 +46,8 @@ describe("Recommendation controls", () => {
     unmount();
     render(<RecommendationControls imports={imports} />);
     expect(
-      screen.getByLabelText("Number of recommendations"),
-    ).toHaveTextContent("10");
+      screen.queryByLabelText("Number of recommendations"),
+    ).not.toBeInTheDocument();
   });
 
   it("handles empty imports and metadata query errors without fake options", () => {
@@ -57,9 +59,11 @@ describe("Recommendation controls", () => {
     expect(screen.queryByRole("option")).not.toBeInTheDocument();
   });
 
-  it("disables count and genre controls and explains their status", () => {
+  it("removes count control and disables genre controls", () => {
     render(<RecommendationControls />);
-    expect(screen.getByLabelText("Number of recommendations")).toBeDisabled();
+    expect(
+      screen.queryByLabelText("Number of recommendations"),
+    ).not.toBeInTheDocument();
     expect(
       screen.getAllByText(/Genre filtering is not yet applied/),
     ).toHaveLength(2);

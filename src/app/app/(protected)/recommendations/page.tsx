@@ -20,8 +20,8 @@ export default async function RecommendationsPage() {
     <PageLayout>
       <PageIntroduction centered title="Get book recommendations">
         Find books from your reading history, ordered by relevance, rating, or
-        at random. Genre controls and result count are shown for the planned
-        experience but are not active yet.
+        at random. Recommendations target 10 books and may return fewer; genre
+        filtering is not active yet.
       </PageIntroduction>
       <RecommendationControls
         imports={(data ?? []) as RecommendationImport[]}

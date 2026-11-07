@@ -8,8 +8,21 @@ export async function persistRecommendations(
   deadline: number,
 ): Promise<string> {
   const controller = new AbortController();
+  const persistedBooks = books.map(
+    ({ key, title, author_name, first_publish_year, isbn, cover_i }) => ({
+      key,
+      title,
+      author_name,
+      first_publish_year,
+      isbn,
+      cover_i,
+    }),
+  );
   const operation = supabase
-    .rpc("save_recommendations", { p_import_run_id: importId, p_books: books })
+    .rpc("save_recommendations", {
+      p_import_run_id: importId,
+      p_books: persistedBooks,
+    })
     .abortSignal(controller.signal);
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {

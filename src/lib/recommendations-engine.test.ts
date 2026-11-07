@@ -29,14 +29,107 @@ describe("recommendation candidate selection", () => {
     );
   });
 
-  it("validates no more than ten search candidates", () => {
+  it("validates up to fifty search candidates for bounded backfill", () => {
     const docs = Array.from({ length: 12 }, (_, index) => ({
       key: `/works/OL${index + 1}W`,
       title: `Book ${index + 1}`,
     }));
 
-    expect(validateSearchBooks({ docs })).toHaveLength(10);
-    expect(validateSearchBooks({ docs }).at(-1)?.key).toBe("/works/OL10W");
+    expect(validateSearchBooks({ docs })).toHaveLength(12);
+    expect(validateSearchBooks({ docs }).at(-1)?.key).toBe("/works/OL12W");
+  });
+
+  it("filters imported titles and avoids duplicate authors, including coauthor overlap", () => {
+    const books = validateSearchBooks({
+      docs: [
+        {
+          key: "/works/OL1W",
+          title: "Imported Title",
+          author_name: ["Jane Doe"],
+        },
+        {
+          key: "/works/OL2W",
+          title: "Another",
+          author_key: ["/authors/OL1A"],
+          author_name: ["Jane Doe", "Other"],
+        },
+        { key: "/works/OL3W", title: "Third", author_key: ["/authors/OL1A"] },
+        { key: "/works/OL4W", title: "Unknown" },
+        { key: "/works/OL5W", title: "Fresh", author_name: ["New Author"] },
+      ],
+    });
+    expect(
+      excludeImportedAndDeduplicate(books, [
+        {
+          title: "imported-title",
+          author: "jane doe",
+          isbn: null,
+          isbn13: null,
+          my_rating: null,
+        },
+      ]).map(({ key }) => key),
+    ).toEqual(["/works/OL2W", "/works/OL5W"]);
+  });
+
+  it.each([
+    [
+      { key: "/authors/OL10A", name: "Same Author" },
+      { key: undefined, name: " same   author " },
+    ],
+    [
+      { key: undefined, name: " same   author " },
+      { key: "/authors/OL10A", name: "Same Author" },
+    ],
+  ])(
+    "deduplicates matching author ID/name identities regardless of order",
+    (identityFirst, identitySecond) => {
+      const books = validateSearchBooks({
+        docs: [identityFirst, identitySecond].map((identity, index) => ({
+          key: `/works/OL${index + 20}W`,
+          title: `Book ${index}`,
+          author_name: [identity.name],
+          ...(identity.key ? { author_key: [identity.key] } : {}),
+        })),
+      });
+      expect(
+        excludeImportedAndDeduplicate(books, []).map(({ key }) => key),
+      ).toHaveLength(1);
+    },
+  );
+
+  it("uses every provider author name for conservative matching and incomplete coauthor IDs", () => {
+    const books = validateSearchBooks({
+      docs: [
+        {
+          key: "/works/OL30W",
+          title: "Imported Name Match",
+          author_name: ["Other Writer", "Imported Author"],
+        },
+        {
+          key: "/works/OL31W",
+          title: "First Coauthored",
+          author_name: ["Writer One", "Shared Writer"],
+          author_key: ["/authors/OL31A"],
+        },
+        {
+          key: "/works/OL32W",
+          title: "Second Coauthored",
+          author_name: ["Writer Two", "Shared Writer"],
+          author_key: ["/authors/OL32A"],
+        },
+      ],
+    });
+    expect(
+      excludeImportedAndDeduplicate(books, [
+        {
+          title: "Imported Name Match",
+          author: "Imported Author",
+          isbn: null,
+          isbn13: null,
+          my_rating: null,
+        },
+      ]).map(({ key }) => key),
+    ).toEqual(["/works/OL31W"]);
   });
 
   it("omits provider edition fields while retaining work ISBNs", () => {

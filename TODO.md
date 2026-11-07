@@ -11,3 +11,4 @@
 - [ ] Include author cap for limiting books in a series for example
 - [ ] Fuzzy search/subject handling/normalization etc
 - [ ] Deleting recommendation runs and imported files
+- [ ] Link to book open library pages in results

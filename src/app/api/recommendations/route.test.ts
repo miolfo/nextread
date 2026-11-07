@@ -69,10 +69,27 @@ beforeEach(() => {
   ownership = { data: { id: importId }, error: null };
   pages = [{ data: [], error: null }];
   getUser.mockResolvedValue({ data: { user: { id: "private-user" } } });
-  rpc.mockImplementation(() => {
+  rpc.mockImplementation((name, args) => {
+    const invalidBook =
+      name === "save_recommendations" &&
+      (args as { p_books: Record<string, unknown>[] }).p_books.some((book) =>
+        Object.keys(book).some(
+          (key) =>
+            ![
+              "key",
+              "title",
+              "author_name",
+              "first_publish_year",
+              "isbn",
+              "cover_i",
+            ].includes(key),
+        ),
+      );
     const result = Promise.resolve({
       data: "b0000000-0000-0000-0000-000000000001",
-      error: null,
+      error: invalidBook
+        ? { code: "P0001", message: "invalid recommendation books" }
+        : null,
     }) as Promise<{
       data: string;
       error: unknown;
@@ -361,6 +378,8 @@ describe("POST /api/recommendations", () => {
                 {
                   key: "/works/OL2W",
                   title: "Keep candidate",
+                  author_name: ["Available Author"],
+                  author_key: ["/authors/OL3A"],
                   isbn: [isbn(21)],
                   editions: {
                     numFound: 3,
@@ -397,7 +416,22 @@ describe("POST /api/recommendations", () => {
         {
           key: "/works/OL2W",
           title: "Keep candidate",
+          author_name: ["Available Author"],
+          author_key: ["/authors/OL3A"],
           isbn: [isbn(21)],
+        },
+      ],
+    });
+    expect(rpc).toHaveBeenCalledWith("save_recommendations", {
+      p_import_run_id: importId,
+      p_books: [
+        {
+          key: "/works/OL2W",
+          title: "Keep candidate",
+          author_name: ["Available Author"],
+          first_publish_year: undefined,
+          isbn: [isbn(21)],
+          cover_i: undefined,
         },
       ],
     });
@@ -405,9 +439,9 @@ describe("POST /api/recommendations", () => {
     expect(search.searchParams.get("q")).toBe(
       '(subject_key:"fantasy") AND language:eng',
     );
-    expect(search.searchParams.get("limit")).toBe("10");
+    expect(search.searchParams.get("limit")).toBe("50");
     expect(search.searchParams.get("fields")).toBe(
-      "key,title,author_name,first_publish_year,isbn,cover_i",
+      "key,title,author_name,author_key,first_publish_year,isbn,cover_i",
     );
     expect(search.searchParams.get("fields")).not.toContain("editions");
     const diagnostic = log.mock.calls.find(
@@ -417,6 +451,8 @@ describe("POST /api/recommendations", () => {
       {
         key: "/works/OL2W",
         title: "Keep candidate",
+        author_name: ["Available Author"],
+        author_key: ["/authors/OL3A"],
         isbn: [isbn(21)],
       },
     ]);
@@ -639,6 +675,32 @@ describe("POST /api/recommendations", () => {
     expect(JSON.stringify(diagnostic.mock.calls)).not.toContain("private-user");
     expect(JSON.stringify(diagnostic.mock.calls)).not.toContain("failing row");
     expect(JSON.stringify(diagnostic.mock.calls)).not.toContain(importId);
+  });
+
+  it("returns a sanitized unavailable response for recommendation RPC P0001", async () => {
+    const diagnostic = vi.spyOn(console, "error").mockImplementation(() => {});
+    rpc.mockImplementationOnce(() => ({
+      abortSignal: () =>
+        Promise.resolve({
+          data: null,
+          error: {
+            code: "P0001",
+            message: "invalid recommendation books: private detail",
+          },
+        }),
+    }));
+
+    const response = await post();
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: "Unavailable" });
+    expect(diagnostic).toHaveBeenCalledWith(
+      "Recommendation experiment unavailable",
+      { phase: "recommendation-persistence", code: "P0001" },
+    );
+    expect(JSON.stringify(diagnostic.mock.calls)).not.toContain(
+      "private detail",
+    );
   });
 
   it("logs import failures and persistence timeouts with safe phase and code", async () => {

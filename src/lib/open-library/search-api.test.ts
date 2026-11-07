@@ -19,7 +19,7 @@ describe("searchBySubjects", () => {
     const url = new URL(String(fetcher.mock.calls[0][0]));
     expect(url.searchParams.get("sort")).toBe(expectedSort ?? null);
     expect(url.searchParams.get("ratings_count")).toBe(ratings ?? null);
-    expect(url.searchParams.get("limit")).toBe("10");
+    expect(url.searchParams.get("limit")).toBe("50");
   });
 
   it("allows a search to succeed after the former ten-second limit", async () => {
@@ -69,7 +69,7 @@ describe("searchBySubjects", () => {
       new Response(JSON.stringify({ docs: [] })),
     );
     const expectedUrl =
-      "https://openlibrary.org/search.json?q=%28subject_key%3A%22fantasy%22+OR+subject_key%3A%22science_fiction%22%29+AND+language%3Aeng&limit=10&fields=key%2Ctitle%2Cauthor_name%2Cfirst_publish_year%2Cisbn%2Ccover_i";
+      "https://openlibrary.org/search.json?q=%28subject_key%3A%22fantasy%22+OR+subject_key%3A%22science_fiction%22%29+AND+language%3Aeng&limit=50&fields=key%2Ctitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Cisbn%2Ccover_i&offset=0";
 
     await searchBySubjects(["Fantasy", "Science Fiction"], Date.now() + 20_000);
 

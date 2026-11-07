@@ -56,7 +56,7 @@ export async function loadImportBooks(
       page = await beforeDeadline(
         supabase
           .from("imported_books")
-          .select("title,isbn,isbn13,my_rating")
+          .select("title,author,isbn,isbn13,my_rating")
           .eq("import_run_id", importId)
           .order("id")
           .range(from, from + 499)
