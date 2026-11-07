@@ -1,14 +1,13 @@
 - [ ] Curate subject candidates and decide on normalization before using subjects in queries.
 - [ ] Include user inputs in recommendations endpoint.
-- [ ] Fix sign out button.
 - [ ] Fix recommendations "import to use" input to match other inputs.
 - [ ] Dark mode.
 - [ ] Center all main headings in all views.
 - [ ] Subject candidates "removal" by marking them as something to ignore
-- [ ] Import doesn't use UI filters
+- [ ] Import doesn't use all UI filters
 - [ ] Enable/disable subjects does nothing for now
 - [ ] Use language of books imported in open library query
-- [ ] Ensure that recommendations don't exist in the import goodreads file at all
 - [ ] Backfill books if some are filtered out
 - [ ] Include author cap for limiting books in a series for example
 - [ ] Fuzzy search/subject handling/normalization etc
+- [ ] Deleting recommendation runs and imported files

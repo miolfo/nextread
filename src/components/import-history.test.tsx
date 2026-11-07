@@ -204,7 +204,7 @@ it("paginates every recommendation generation in stable newest-first order", asy
     ).getAllByRole("link", { name: "View details" })[0],
   ).toHaveAttribute(
     "href",
-    "/app/recommendations?recommendationId=recommendation-0",
+    "/app/recommendation-results?recommendationId=recommendation-0",
   );
 }, 15000);
 
@@ -266,7 +266,7 @@ it("keeps recommendation history visible when import history fails", async () =>
   ).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "View details" })).toHaveAttribute(
     "href",
-    "/app/recommendations?recommendationId=saved-set",
+    "/app/recommendation-results?recommendationId=saved-set",
   );
 });
 

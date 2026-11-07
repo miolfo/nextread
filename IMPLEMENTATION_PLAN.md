@@ -26,13 +26,13 @@ This document describes the current demo behavior and acceptance scope.
 | `/app/history` | Import and recommendation history. |
 | `/app/login` | Email/password sign-in. |
 | `/app/recommendations` | Recommendation configuration screen, including the import query and controls. |
-| `/app/recommendation-results` | Direct-URL, protected visual-only curated book results demo. |
+| `/app/recommendation-results` | Protected saved recommendation results, addressed by recommendation ID. |
 | `/app/admin/subjects` | Read-only admin view of observed subjects, occurrence counts, and enabled status. |
 | `/auth/callback` | Supabase authentication callback. |
 | `/api/import` | Goodreads CSV import endpoint. |
 | `/api/recommendations` | Local-only subject collection and recommendation-search endpoint. |
 
-The import, recommendation configuration, and recommendation-results views are independently accessible without a navigation prerequisite. `/app/recommendations` loads the signed-in user's import metadata and recommendation controls; `/app/recommendation-results` directly shows 12 fictional demo books without an API call or import. Live/personalized recommendation results remain out of scope. The admin subject page requires a verified user whose trusted `app_metadata.is_admin` is boolean `true`.
+The import, recommendation configuration, and recommendation-results views are independently accessible without a navigation prerequisite. `/app/recommendations` loads the signed-in user's import metadata and recommendation controls; `/app/recommendation-results?recommendationId=…` loads the signed-in user's saved books in position order. Missing, invalid, inaccessible, empty, or failed loads show honest states, never fictional content. Decorative placeholders may be used for actual books. The admin subject page requires a verified user whose trusted `app_metadata.is_admin` is boolean `true`.
 
 The history view displays paginated import records and recommendation generations independently. Recommendation rows include the source import filename (or “Filename unavailable”), date, and a link to the saved recommendations; both history tables right-align their action columns.
 
@@ -95,7 +95,7 @@ Route sources are `src/app/page.tsx`, `src/app/app/login/page.tsx`, `src/app/app
 
 This route remains the recommendation configuration screen, based on `designs/Next Read Finder Recommendations v2.png`. It queries the signed-in user's import metadata and renders `RecommendationControls`; see the unified form and behavior below.
 
-The separate `/app/recommendation-results` route is a direct-URL protected visual demo based on `designs/Next Read Curated Book Recommendations.jpg`. It displays 12 fictional books with CSS-styled cover placeholders (no cover photos), a responsive four-item paginated carousel, accessible previous/next and pagination controls, and a “Generate again” action that returns to the first page. No recommendation API is called and no import is required. No navigation link is added. Live or personalized results remain out of scope.
+`/app/recommendation-results` displays persisted books for a recommendation ID, with decorative CSS cover placeholders, responsive four-item pagination, and a “Generate again” action returning to configuration. It never substitutes fictional books when data is missing or unavailable.
 
 ### Introduction
 
@@ -131,9 +131,9 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - Recommendation controls and the selected import use transient local state; recommendation preferences and the selected import are not persisted.
 - The generate button requires a selected import and calls authenticated `POST /api/recommendations`; it is pending-disabled during the request. The experiment is local-development-only; production responds unavailable.
 - Import metadata query errors and empty import history show honest unavailable/empty states; do not use placeholder import records.
-- The configuration route retains these controls and the authenticated import metadata query. The separate results demo does not invoke the recommendation API.
+- The configuration route retains these controls and the authenticated import metadata query. Successful generation opens saved results; failures show a visible error without navigation.
 - Pending button state only; no toasts, generated lists, sample book results, or completion feedback.
-- The local endpoint processes only the selected import through bounded Open Library book lookup, persists exact subject strings and per-book counts to `subject` without changing enabled status, then searches current-request subjects and returns up to ten distinct works. Each successful generation is atomically saved as a historical recommendation set and ordered book children; empty successful generations are saved too. Sets belong to the authenticated user and selected import, and are cascaded on import/user deletion. The response includes `recommendationId`; no raw file or preference data is saved. Relevance leaves provider sort and ratings filter unset; Highest rated sends `sort=rating` and `ratings_count:[10 TO *]`; Random sends `sort=random`. Genre matching and requested count are not applied; no results UI is shown. The separate `/app/recommendation-results` route remains a fictional visual demo and does not call this API. See `designs/RECOMMENDATIONS_ENGINE_PLAN.md` for ranking, bounds, filtering limitations, deadline, and local diagnostic behavior.
+- The local endpoint processes only the selected import through bounded Open Library book lookup, persists exact subject strings and per-book counts to `subject` without changing enabled status, then searches current-request subjects and returns up to ten distinct works. Each successful generation is atomically saved as a historical recommendation set and ordered book children; empty successful generations are saved too. Sets belong to the authenticated user and selected import, and are cascaded on import/user deletion. The response includes `recommendationId`; no raw file or preference data is saved. Relevance leaves provider sort and ratings filter unset; Highest rated sends `sort=rating` and `ratings_count:[10 TO *]`; Random sends `sort=random`. Genre matching and requested count are not applied. A valid generation success opens saved results; failures stay on configuration and show an error. See `designs/RECOMMENDATIONS_ENGINE_PLAN.md` for ranking, bounds, filtering limitations, deadline, and local diagnostic behavior.
 - Historical migrations first introduced and corrected the candidate table/RPC. The incremental merge migration moves candidate counts into `subject`, removes the old table, and retains the RPC name for callers already deployed. The forward `20261102000000_fix_record_subject_candidates_collation.sql` migration corrects the RPC's grouped expression to avoid SQLSTATE 42803; apply it after the merge migration. Persistence increments `subject.count` while preserving enabled status. Unavailable endpoint failures receive only a phase and sanitized database error code in server logs; SQL messages and subject payloads are never logged.
 - Refreshing the page resets all controls to their defaults.
 
@@ -191,7 +191,7 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - The import stepper and decorative illustration are absent.
 - All shadcn definitions reside under `src/components`, and consumers import only those local UI definitions via `@/components`.
 - Styling is encapsulated in components, apart from required global setup and theme tokens.
-- The recommendation configuration route queries import metadata and renders its controls; `/app/recommendation-results` displays the visual-only demo without an API call, and carousel pagination/reset work accessibly.
+- The recommendation configuration route queries import metadata and renders its controls; saved results load only persisted books in saved order, with pagination and honest fallback states. History links and successful generation open saved results; failures do not navigate.
 - The import picker accepts arbitrary files; upload posts multipart data and returns the saved import ID.
 - Successful import query state fetches and reviews only the selected import's saved records; reset and continue actions work.
 - Review summaries and latest reads derive only from saved records; empty and query-error states do not show fabricated data.

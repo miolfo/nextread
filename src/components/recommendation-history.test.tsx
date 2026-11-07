@@ -45,10 +45,10 @@ it("renders saved generations newest first with direct links", () => {
   expect(within(rows[1]).getByText(/Oct 14, 2026/)).toBeInTheDocument();
   expect(
     within(rows[1]).getByRole("link", { name: "View details" }),
-  ).toHaveAttribute("href", "/app/recommendations?recommendationId=new");
+  ).toHaveAttribute("href", "/app/recommendation-results?recommendationId=new");
   expect(
     within(rows[2]).getByRole("link", { name: "View details" }),
-  ).toHaveAttribute("href", "/app/recommendations?recommendationId=old");
+  ).toHaveAttribute("href", "/app/recommendation-results?recommendationId=old");
 });
 
 it("distinguishes empty and failed recommendation history", () => {

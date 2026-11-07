@@ -82,7 +82,7 @@ export function RecommendationHistory({
                       role="link"
                       render={
                         <Link
-                          href={`/app/recommendations?recommendationId=${encodeURIComponent(id)}`}
+                          href={`/app/recommendation-results?recommendationId=${encodeURIComponent(id)}`}
                         />
                       }
                       variant="outline"

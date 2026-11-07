@@ -5,6 +5,7 @@ import { BookOpen, Hash, Sparkles, Target } from "lucide-react";
 import { GenreSelector, type Genre } from "@/components/genre-selector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { isValidRecommendationId } from "@/lib/recommendations/results";
 import {
   Select,
   SelectContent,
@@ -47,6 +48,7 @@ export function RecommendationControls({
   const [included, setIncluded] = useState<Genre[]>([]);
   const [excluded, setExcluded] = useState<Genre[]>([]);
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState(false);
   const selectedImportData = imports.find((item) => item.id === selectedImport);
 
   function toggleGenre(genre: Genre, target: "include" | "exclude") {
@@ -63,14 +65,34 @@ export function RecommendationControls({
   async function recommend() {
     if (pending || !selectedImport) return;
     setPending(true);
+    setError(false);
     try {
-      await fetch("/api/recommendations", {
+      const response = await fetch("/api/recommendations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ importId: selectedImport, sort }),
       });
+      const result: unknown = await response.json();
+      if (
+        !response.ok ||
+        !result ||
+        typeof result !== "object" ||
+        !("ok" in result) ||
+        result.ok !== true ||
+        !("recommendationId" in result) ||
+        !isValidRecommendationId(result.recommendationId)
+      ) {
+        setError(true);
+        return;
+      }
+      globalThis.location.assign(
+        new URL(
+          `/app/recommendation-results?recommendationId=${encodeURIComponent(result.recommendationId)}`,
+          globalThis.location.origin,
+        ).href,
+      );
     } catch {
-      // The experiment deliberately has no user-facing results or error state.
+      setError(true);
     } finally {
       setPending(false);
     }
@@ -205,6 +227,11 @@ export function RecommendationControls({
         </section>
       </CardContent>
       <CardFooter className="border-t p-5 sm:p-6">
+        {error && (
+          <p role="alert" className="mb-3 text-sm text-destructive">
+            Recommendations couldn’t be generated. Please try again.
+          </p>
+        )}
         <Button
           type="button"
           className="w-full"

@@ -2,9 +2,11 @@
 
 import { RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import type { RecommendationResultsLoad } from "@/lib/recommendations/results";
 
-const books = [
+const decorations = [
   [
     "The Glass Observatory",
     "Mara Ellison",
@@ -91,14 +93,15 @@ const books = [
   ],
 ] as const;
 
-export function RecommendationResults() {
+export function RecommendationResults({
+  result,
+}: {
+  result: RecommendationResultsLoad;
+}) {
   const [page, setPage] = useState(0);
+  const books = result.state === "loaded" ? result.books : [];
   const pageCount = Math.ceil(books.length / 4);
   const visibleBooks = books.slice(page * 4, page * 4 + 4);
-
-  function reset() {
-    setPage(0);
-  }
 
   return (
     <section aria-label="Book recommendations" className="space-y-8">
@@ -110,110 +113,140 @@ export function RecommendationResults() {
           <h1 className="font-serif text-3xl font-semibold tracking-tight sm:text-4xl">
             Your book recommendations
           </h1>
-          <p className="text-muted-foreground">
-            12 books selected based on your reading preferences.
-          </p>
+          <p className="text-muted-foreground">Saved recommendations</p>
         </div>
-        <Button variant="outline" className="w-fit" onClick={reset}>
+        <Button
+          variant="outline"
+          className="w-fit"
+          nativeButton={false}
+          render={<Link href="/app/recommendations" />}
+        >
           <RefreshCw aria-hidden="true" /> Generate again
         </Button>
       </div>
-      <div className="relative">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {visibleBooks.map(([title, author, year, color, art]) => (
-            <article
-              key={title}
-              className="min-w-0 rounded-xl border bg-card p-3 shadow-sm"
-            >
-              <div
-                aria-hidden="true"
-                className={`flex aspect-[3/4] items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br ${color} p-5 text-center text-white`}
-              >
-                <div className="flex size-full flex-col items-center justify-center border border-white/35 px-3 shadow-inner">
-                  <span className="mb-4 text-3xl opacity-80">{art}</span>
-                  <span className="font-serif text-xl leading-tight tracking-wide uppercase">
-                    {title}
-                  </span>
-                  <span className="mt-4 text-[10px] tracking-[0.2em] uppercase">
-                    {author}
-                  </span>
-                </div>
-              </div>
-              <h2 className="mt-3 line-clamp-2 font-serif text-lg leading-snug font-semibold">
-                {title}
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">{author}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{year}</p>
-            </article>
-          ))}
-        </div>
-        <div className="absolute -left-3 top-1/2 hidden -translate-y-1/2 sm:block">
-          <Button
-            aria-label="Previous recommendations"
-            variant="outline"
-            size="icon"
-            className="rounded-full bg-background shadow"
-            disabled={page === 0}
-            onClick={() => setPage((current) => Math.max(0, current - 1))}
-          >
-            <ChevronLeft />
-          </Button>
-        </div>
-        <div className="absolute -right-3 top-1/2 hidden -translate-y-1/2 sm:block">
-          <Button
-            aria-label="Next recommendations"
-            variant="outline"
-            size="icon"
-            className="rounded-full bg-background shadow"
-            disabled={page === pageCount - 1}
-            onClick={() =>
-              setPage((current) => Math.min(pageCount - 1, current + 1))
-            }
-          >
-            <ChevronRight />
-          </Button>
-        </div>
-      </div>
-      <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-        <p aria-live="polite" className="text-sm text-muted-foreground">
-          {page * 4 + 1}–{Math.min(page * 4 + 4, books.length)} of 12
-        </p>
-        <div
-          aria-label="Recommendation pages"
-          className="flex items-center gap-2"
+      {result.state !== "loaded" ? (
+        <p
+          role={result.state === "error" ? "alert" : undefined}
+          className="rounded-lg border p-6 text-muted-foreground"
         >
-          {Array.from({ length: pageCount }, (_, index) => (
-            <button
-              key={index}
-              type="button"
-              aria-label={`Show recommendations ${index + 1}`}
-              aria-current={page === index ? "page" : undefined}
-              onClick={() => setPage(index)}
-              className={`size-3 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${page === index ? "bg-emerald-800" : "bg-muted-foreground/30"}`}
-            />
-          ))}
-        </div>
-        <div className="flex gap-2 sm:hidden">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page === 0}
-            onClick={() => setPage((value) => Math.max(0, value - 1))}
-          >
-            <ChevronLeft /> Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page === pageCount - 1}
-            onClick={() =>
-              setPage((value) => Math.min(pageCount - 1, value + 1))
-            }
-          >
-            Next <ChevronRight />
-          </Button>
-        </div>
-      </div>
+          {result.state === "empty"
+            ? "This recommendation run has no saved books."
+            : result.state === "error"
+              ? "Saved recommendations couldn’t be loaded. Try again later."
+              : "These saved recommendations are unavailable."}
+        </p>
+      ) : (
+        <>
+          <div className="relative">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {visibleBooks.map((book, index) => {
+                const [, , , color, art] =
+                  decorations[(page * 4 + index) % decorations.length];
+                const title = book.title || "Title unavailable";
+                const author =
+                  book.author_name?.filter(Boolean).join(", ") ||
+                  "Author unavailable";
+                const year = book.first_publish_year ?? "Year unavailable";
+                return (
+                  <article
+                    key={book.key}
+                    className="min-w-0 rounded-xl border bg-card p-3 shadow-sm"
+                  >
+                    <div
+                      aria-hidden="true"
+                      className={`flex aspect-[3/4] items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br ${color} p-5 text-center text-white`}
+                    >
+                      <div className="flex size-full flex-col items-center justify-center border border-white/35 px-3 shadow-inner">
+                        <span className="mb-4 text-3xl opacity-80">{art}</span>
+                        <span className="font-serif text-xl leading-tight tracking-wide uppercase">
+                          {title}
+                        </span>
+                        <span className="mt-4 text-[10px] tracking-[0.2em] uppercase">
+                          {author}
+                        </span>
+                      </div>
+                    </div>
+                    <h2 className="mt-3 line-clamp-2 font-serif text-lg leading-snug font-semibold">
+                      {title}
+                    </h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {author}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">{year}</p>
+                  </article>
+                );
+              })}
+            </div>
+            <div className="absolute -left-3 top-1/2 hidden -translate-y-1/2 sm:block">
+              <Button
+                aria-label="Previous recommendations"
+                variant="outline"
+                size="icon"
+                className="rounded-full bg-background shadow"
+                disabled={page === 0}
+                onClick={() => setPage((current) => Math.max(0, current - 1))}
+              >
+                <ChevronLeft />
+              </Button>
+            </div>
+            <div className="absolute -right-3 top-1/2 hidden -translate-y-1/2 sm:block">
+              <Button
+                aria-label="Next recommendations"
+                variant="outline"
+                size="icon"
+                className="rounded-full bg-background shadow"
+                disabled={page === pageCount - 1}
+                onClick={() =>
+                  setPage((current) => Math.min(pageCount - 1, current + 1))
+                }
+              >
+                <ChevronRight />
+              </Button>
+            </div>
+          </div>
+          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+            <p aria-live="polite" className="text-sm text-muted-foreground">
+              {page * 4 + 1}–{Math.min(page * 4 + 4, books.length)} of{" "}
+              {books.length}
+            </p>
+            <div
+              aria-label="Recommendation pages"
+              className="flex items-center gap-2"
+            >
+              {Array.from({ length: pageCount }, (_, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  aria-label={`Show recommendations ${index + 1}`}
+                  aria-current={page === index ? "page" : undefined}
+                  onClick={() => setPage(index)}
+                  className={`size-3 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${page === index ? "bg-emerald-800" : "bg-muted-foreground/30"}`}
+                />
+              ))}
+            </div>
+            <div className="flex gap-2 sm:hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 0}
+                onClick={() => setPage((value) => Math.max(0, value - 1))}
+              >
+                <ChevronLeft /> Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === pageCount - 1}
+                onClick={() =>
+                  setPage((value) => Math.min(pageCount - 1, value + 1))
+                }
+              >
+                Next <ChevronRight />
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
     </section>
   );
 }
