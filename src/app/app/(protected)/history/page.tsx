@@ -28,15 +28,20 @@ export default async function ImportsPage() {
       break;
     }
     recommendations.push(
-      ...(data ?? []).map((recommendation) => ({
-        id: recommendation.id,
-        created_at: recommendation.created_at,
-        original_filename:
-          (
-            recommendation.import_runs as
-              { original_filename: string | null }[] | null
-          )?.[0]?.original_filename ?? null,
-      })),
+      ...(data ?? []).map((recommendation) => {
+        const relatedImport = recommendation.import_runs as
+          | { original_filename: string | null }
+          | { original_filename: string | null }[]
+          | null;
+        const sourceImport = Array.isArray(relatedImport)
+          ? relatedImport[0]
+          : relatedImport;
+        return {
+          id: recommendation.id,
+          created_at: recommendation.created_at,
+          original_filename: sourceImport?.original_filename ?? null,
+        };
+      }),
     );
     if (!data || data.length < pageSize) break;
   }

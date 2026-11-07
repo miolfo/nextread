@@ -25,6 +25,11 @@ it("renders saved generations newest first with direct links", () => {
       .getAllByRole("columnheader")
       .map((cell) => cell.textContent),
   ).toEqual(["File name", "Date", "Action"]);
+  for (const header of within(rows[0])
+    .getAllByRole("columnheader")
+    .slice(0, -1)) {
+    expect(header).not.toHaveClass("text-right");
+  }
   expect(within(rows[1]).getByRole("rowheader")).toHaveTextContent(
     "library.csv",
   );
@@ -35,14 +40,14 @@ it("renders saved generations newest first with direct links", () => {
     within(rows[0]).getByRole("columnheader", { name: "Action" }),
   ).toHaveClass("text-right");
   expect(
-    within(rows[1]).getByRole("cell", { name: "View recommendations" }),
+    within(rows[1]).getByRole("cell", { name: "View details" }),
   ).toHaveClass("text-right");
   expect(within(rows[1]).getByText(/Oct 14, 2026/)).toBeInTheDocument();
   expect(
-    within(rows[1]).getByRole("link", { name: "View recommendations" }),
+    within(rows[1]).getByRole("link", { name: "View details" }),
   ).toHaveAttribute("href", "/app/recommendations?recommendationId=new");
   expect(
-    within(rows[2]).getByRole("link", { name: "View recommendations" }),
+    within(rows[2]).getByRole("link", { name: "View details" }),
   ).toHaveAttribute("href", "/app/recommendations?recommendationId=old");
 });
 

@@ -117,6 +117,20 @@ it("renders actual import records and aggregates stored book data", async () => 
   expect(screen.queryByText("Top genres")).not.toBeInTheDocument();
 
   const table = screen.getByRole("table");
+  const headers = within(table).getAllByRole("columnheader");
+  expect(headers.map((header) => header.textContent)).toEqual([
+    "File name",
+    "Imported",
+    "Books",
+    "Rated",
+    "Average rating",
+    "Authors",
+    "Action",
+  ]);
+  for (const header of headers.slice(0, -1)) {
+    expect(header).not.toHaveClass("text-right");
+  }
+  expect(headers.at(-1)).toHaveClass("text-right");
   expect(
     within(table).getByText("my-goodreads-library.csv"),
   ).toBeInTheDocument();
@@ -159,7 +173,7 @@ it("paginates every recommendation generation in stable newest-first order", asy
     created_at: new Date(
       Date.UTC(2026, 9, 14, 10, 24) - index * 1000,
     ).toISOString(),
-    import_runs: [{ original_filename: "history.csv" }],
+    import_runs: { original_filename: "history.csv" },
   }));
   mockRecommendations.mockImplementation(async (from: number) => ({
     data: generations.slice(from, from + 1000),
@@ -179,15 +193,49 @@ it("paginates every recommendation generation in stable newest-first order", asy
     [1000, 1999],
   ]);
   expect(
-    screen.getAllByRole("link", { name: "View recommendations" }),
+    within(
+      screen.getByRole("region", { name: "Recommendation history" }),
+    ).getAllByRole("link", { name: "View details" }),
   ).toHaveLength(1001);
+  expect(screen.getAllByText("history.csv")).toHaveLength(1001);
   expect(
-    screen.getAllByRole("link", { name: "View recommendations" })[0],
+    within(
+      screen.getByRole("region", { name: "Recommendation history" }),
+    ).getAllByRole("link", { name: "View details" })[0],
   ).toHaveAttribute(
     "href",
     "/app/recommendations?recommendationId=recommendation-0",
   );
 }, 15000);
+
+it.each([
+  { original_filename: "source-library.csv" },
+  [{ original_filename: "source-library.csv" }],
+  { original_filename: null },
+  null,
+  [],
+])(
+  "reads the source import filename from relation %j",
+  async (sourceImport) => {
+    mockRecommendations.mockResolvedValue({
+      data: [
+        {
+          id: "saved-set",
+          created_at: "2026-10-14T10:24:00.000Z",
+          import_runs: sourceImport,
+        },
+      ],
+      error: null,
+    });
+    render(await ImportsPage());
+    const source = Array.isArray(sourceImport) ? sourceImport[0] : sourceImport;
+    expect(
+      screen.getByRole("rowheader", {
+        name: source?.original_filename ?? "Filename unavailable",
+      }),
+    ).toBeInTheDocument();
+  },
+);
 
 it("keeps import history visible when recommendation history fails", async () => {
   mockRecommendations.mockResolvedValue({
@@ -216,9 +264,10 @@ it("keeps recommendation history visible when import history fails", async () =>
   expect(
     screen.getByRole("heading", { name: "Import history unavailable" }),
   ).toBeInTheDocument();
-  expect(
-    screen.getByRole("link", { name: "View recommendations" }),
-  ).toHaveAttribute("href", "/app/recommendations?recommendationId=saved-set");
+  expect(screen.getByRole("link", { name: "View details" })).toHaveAttribute(
+    "href",
+    "/app/recommendations?recommendationId=saved-set",
+  );
 });
 
 it.each(["import_runs", "imported_books"])(

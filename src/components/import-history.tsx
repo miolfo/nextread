@@ -175,7 +175,7 @@ export function ImportHistory({
               <thead className="border-b bg-muted/50">
                 <tr>
                   <th
-                    className="px-4 py-3 text-right font-medium whitespace-nowrap"
+                    className="px-4 py-3 font-medium whitespace-nowrap"
                     scope="col"
                   >
                     File name
@@ -195,8 +195,11 @@ export function ImportHistory({
                   <th className="px-4 py-3 font-medium" scope="col">
                     Authors
                   </th>
-                  <th className="px-4 py-3 font-medium" scope="col">
-                    Actions
+                  <th
+                    className="px-4 py-3 text-right font-medium whitespace-nowrap"
+                    scope="col"
+                  >
+                    Action
                   </th>
                 </tr>
               </thead>

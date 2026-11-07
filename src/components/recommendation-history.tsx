@@ -88,7 +88,7 @@ export function RecommendationHistory({
                       variant="outline"
                       size="sm"
                     >
-                      View recommendations
+                      View details
                     </Button>
                   </td>
                 </tr>
