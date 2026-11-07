@@ -4,6 +4,20 @@ A book discovery demo built with Next.js App Router, Supabase email/password aut
 Tailwind CSS, local shadcn/ui components (the CLI's standard Base Nova defaults),
 and Lucide icons.
 
+## Screenshots
+
+### Import
+
+![Goodreads file import screen](docs/screenshots/import.png)
+
+### Recommendations
+
+![Recommendation configuration screen](docs/screenshots/recommendations.png)
+
+### Recommendation results
+
+![Saved book recommendations with paginated results](docs/screenshots/recommendation-results.png)
+
 ## Run locally
 
 Requires Node.js 22.12+ and npm.
@@ -39,6 +53,44 @@ Supabase Auth Admin/API (never `user_metadata`);
 JWT refresh/expiry can delay revocation. Enabled status is read-only.
 The listing is URL-paginated in pages of 20 and can be sorted by Subject or
 Occurrences; query ordering is preserved when navigating between pages.
+
+## Recommendations engine
+
+The engine uses Goodreads ratings and Open Library subjects, not AI. Reviews,
+genre preferences, and global subject popularity do not influence results.
+
+1. **Sample books.** Authenticated `POST /api/recommendations` loads only the
+   selected import. It accepts numeric ratings from 0–5, randomizes ties, and
+   takes the top 30 before validating identifiers. ISBNs are normalized,
+   checksum-validated, converted to ISBN-13, and deduplicated; up to ten eligible
+   books are then sampled randomly without replacement.
+2. **Fetch subjects.** One GET to `https://openlibrary.org/api/books` combines
+   sampled ISBNs into comma-separated, ISBN-prefixed `bibkeys`, with `format=json`
+   and `jscmd=data`. Parameters are URL-encoded using `URL.searchParams`. Only
+   requested books are read; nonblank subjects are preserved exactly and counted
+   once per book. Observation counts are persisted without changing enabled status.
+3. **Build the search.** The three most frequent subjects from this request are
+   selected, with random ties; stored counts and enabled flags are ignored.
+   Query keys are lowercased, stripped of Open Library's excluded punctuation,
+   converted from spaces to underscores, deduplicated, and escaped. One GET to
+   `https://openlibrary.org/search.json` joins exact `subject_key` clauses in a
+   parenthesized OR group, then adds `AND language:eng` to require an English
+   edition. URL-encoded parameters request ten works and only title, author, year,
+   ISBN, cover, and work-key fields. Relevance omits sorting; Highest rated adds
+   `sort=rating` and a minimum of ten ratings; Random adds `sort=random`.
+4. **Filter and save.** Validate the first ten documents, remove duplicate works,
+   and exclude ISBN matches against the entire selected import. There is no
+   backfill or unrelated fallback. Save the ordered results atomically, including
+   successful empty sets, then open the saved results page.
+
+The pipeline shares a 40-second deadline; search gets at most 30 seconds within
+that budget. Both provider responses are capped at 2 MiB, and search URLs at
+8,192 characters. There are no retries. Books API failures can yield empty results;
+search, import-read, or persistence failures show an unavailable state instead.
+
+Implementation: [`recommendations-engine.ts`](src/lib/recommendations-engine.ts),
+[`open-library/`](src/lib/open-library/), and the
+[`recommendations endpoint`](src/app/api/recommendations/route.ts).
 
 ## Verification
 
