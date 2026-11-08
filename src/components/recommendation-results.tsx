@@ -233,9 +233,10 @@ export function RecommendationResults({
                     key={book.key}
                     className="min-w-0 rounded-xl border bg-card p-3 shadow-sm"
                   >
-                    <div
-                      aria-hidden="true"
-                      className={`flex aspect-[3/4] items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br ${color} p-5 text-center text-white`}
+                    <a
+                      href={`https://openlibrary.org${book.key}`}
+                      aria-label={`View cover for ${title} on Open Library`}
+                      className={`flex aspect-[3/4] items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br ${color} p-5 text-center text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring`}
                     >
                       <div className="flex size-full flex-col items-center justify-center border border-white/35 px-3 shadow-inner">
                         <span className="mb-4 text-3xl opacity-80">{art}</span>
@@ -246,7 +247,7 @@ export function RecommendationResults({
                           {author}
                         </span>
                       </div>
-                    </div>
+                    </a>
                     <h2 className="mt-3 line-clamp-2 font-serif text-lg leading-snug font-semibold">
                       <a href={`https://openlibrary.org${book.key}`}>{title}</a>
                     </h2>

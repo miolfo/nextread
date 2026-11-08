@@ -97,7 +97,7 @@ This route remains the recommendation configuration screen, based on `designs/Ne
 
 `/app/recommendation-results` displays persisted books for a recommendation ID, with decorative CSS cover placeholders, responsive four-item pagination, and a “Generate again” action returning to configuration. It never substitutes fictional books when data is missing or unavailable.
 
-Each saved book title links in the same tab to its Open Library work page (`https://openlibrary.org` plus the saved work key).
+Each saved book cover and title link in the same tab to its Open Library work page (`https://openlibrary.org` plus the saved work key). Cover links have a distinct accessible name and visible keyboard focus.
 
 Saved recommendation results include an Applied filters snapshot: included/excluded genres, sort, publication-year bounds, selected lengths, import filename as it existed for that run, and the exact raw subject names selected and sent to Open Library. This metadata is committed atomically with results. Successful empty runs show the same snapshot; legacy runs without metadata explicitly report it unavailable.
 

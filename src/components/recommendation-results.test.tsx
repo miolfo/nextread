@@ -46,6 +46,16 @@ describe("Recommendation results", () => {
       "href",
       "https://openlibrary.org/works/OL1W",
     );
+    const coverLink = screen.getByRole("link", {
+      name: "View cover for Saved book 1 on Open Library",
+    });
+    expect(coverLink).toHaveAttribute(
+      "href",
+      "https://openlibrary.org/works/OL1W",
+    );
+    expect(coverLink).not.toHaveAttribute("target");
+    coverLink.focus();
+    expect(coverLink).toHaveFocus();
     await user.click(
       screen.getByRole("button", { name: "Next recommendations" }),
     );
