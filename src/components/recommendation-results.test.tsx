@@ -42,6 +42,10 @@ describe("Recommendation results", () => {
     expect(
       screen.getByRole("heading", { name: "Saved book 1" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Saved book 1" })).toHaveAttribute(
+      "href",
+      "https://openlibrary.org/works/OL1W",
+    );
     await user.click(
       screen.getByRole("button", { name: "Next recommendations" }),
     );
@@ -85,6 +89,30 @@ describe("Recommendation results", () => {
     await user.click(screen.getByRole("button", { name: "Previous" }));
     expect(screen.getByText("1–4 of 12")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
+  });
+
+  it.each([
+    [
+      { state: "invalid" as const },
+      "These saved recommendations are unavailable.",
+    ],
+    [
+      { state: "empty" as const, books: [], metadata: null },
+      "This recommendation run has no saved books.",
+    ],
+    [
+      { state: "error" as const },
+      "Saved recommendations couldn’t be loaded. Try again later.",
+    ],
+  ])("shows the appropriate state without book links", (load, message) => {
+    render(<RecommendationResults result={load} />);
+    expect(screen.getByText(message)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Saved book/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Show recommendations/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows applied metadata for empty runs and explains legacy metadata gaps", () => {
