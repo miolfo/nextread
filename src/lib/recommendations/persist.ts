@@ -1,10 +1,21 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OpenLibraryBook } from "@/lib/recommendations-engine";
 
+export type RecommendationRunMetadata = {
+  sort: "relevance" | "rating" | "random";
+  fromYear?: number;
+  toYear?: number;
+  lengths: ("short" | "medium" | "long")[];
+  includedGenres: string[];
+  excludedGenres: string[];
+  subjectsUsed: string[];
+};
+
 export async function persistRecommendations(
   supabase: SupabaseClient,
   importId: string,
   books: OpenLibraryBook[],
+  metadata: RecommendationRunMetadata,
   deadline: number,
 ): Promise<string> {
   const controller = new AbortController();
@@ -19,9 +30,18 @@ export async function persistRecommendations(
     }),
   );
   const operation = supabase
-    .rpc("save_recommendations", {
+    .rpc("save_recommendations_with_metadata", {
       p_import_run_id: importId,
       p_books: persistedBooks,
+      p_metadata: {
+        sort: metadata.sort,
+        from_year: metadata.fromYear ?? null,
+        to_year: metadata.toYear ?? null,
+        lengths: metadata.lengths,
+        included_genres: metadata.includedGenres,
+        excluded_genres: metadata.excludedGenres,
+        subjects_used: metadata.subjectsUsed,
+      },
     })
     .abortSignal(controller.signal);
   let timer: ReturnType<typeof setTimeout> | undefined;

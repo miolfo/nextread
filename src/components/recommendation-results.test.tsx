@@ -5,6 +5,18 @@ import { RecommendationResults } from "@/components/recommendation-results";
 
 const result = {
   state: "loaded" as const,
+  metadata: {
+    importFilename: "books.csv",
+    filters: {
+      sort: "relevance",
+      included_genres: ["Fantasy"],
+      excluded_genres: [],
+      from_year: 1990,
+      to_year: 2024,
+      lengths: ["short"],
+    },
+    subjectsUsed: ["Raw Open Library Subject"],
+  },
   books: Array.from({ length: 12 }, (_, index) => ({
     key: `/works/OL${index + 1}W`,
     title: `Saved book ${index + 1}`,
@@ -21,6 +33,12 @@ describe("Recommendation results", () => {
       screen.getByRole("heading", { name: "Your book recommendations" }),
     ).toBeInTheDocument();
     expect(screen.getByText("1–4 of 12")).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Applied filters" }),
+    ).toHaveTextContent("Raw Open Library Subject");
+    expect(
+      screen.getByRole("region", { name: "Applied filters" }),
+    ).toHaveTextContent("books.csv");
     expect(
       screen.getByRole("heading", { name: "Saved book 1" }),
     ).toBeInTheDocument();
@@ -67,5 +85,25 @@ describe("Recommendation results", () => {
     await user.click(screen.getByRole("button", { name: "Previous" }));
     expect(screen.getByText("1–4 of 12")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
+  });
+
+  it("shows applied metadata for empty runs and explains legacy metadata gaps", () => {
+    const empty = {
+      state: "empty" as const,
+      books: [],
+      metadata: result.metadata,
+    };
+    const { rerender } = render(<RecommendationResults result={empty} />);
+    expect(
+      screen.getByRole("region", { name: "Applied filters" }),
+    ).toHaveTextContent("Raw Open Library Subject");
+    expect(
+      screen.getByText("This recommendation run has no saved books."),
+    ).toBeInTheDocument();
+
+    rerender(<RecommendationResults result={{ ...empty, metadata: null }} />);
+    expect(
+      screen.getByText(/unavailable for this legacy recommendation run/),
+    ).toBeInTheDocument();
   });
 });

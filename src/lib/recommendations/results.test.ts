@@ -3,7 +3,12 @@ import { loadRecommendationResults } from "@/lib/recommendations/results";
 
 const id = "123e4567-e89b-42d3-a456-426614174000";
 function fakeClient({
-  recommendation = { id },
+  recommendation = {
+    id,
+    applied_filters: { sort: "relevance" },
+    subjects_used: ["Raw Subject"],
+    import_filename: "library.csv",
+  },
   recommendationError = null,
   books = [],
   booksError = null,
@@ -54,6 +59,11 @@ describe("loadRecommendationResults", () => {
     expect(await loadRecommendationResults(client as never, id)).toEqual({
       state: "loaded",
       books,
+      metadata: {
+        importFilename: "library.csv",
+        filters: { sort: "relevance" },
+        subjectsUsed: ["Raw Subject"],
+      },
     });
     expect(client.from).toHaveBeenNthCalledWith(2, "recommended_book");
     expect(order).toHaveBeenCalledWith("position", { ascending: true });
@@ -65,7 +75,15 @@ describe("loadRecommendationResults", () => {
         fakeClient({ books: [] }).client as never,
         id,
       ),
-    ).toEqual({ state: "empty" });
+    ).toEqual({
+      state: "empty",
+      books: [],
+      metadata: {
+        importFilename: "library.csv",
+        filters: { sort: "relevance" },
+        subjectsUsed: ["Raw Subject"],
+      },
+    });
     expect(
       await loadRecommendationResults(
         fakeClient({ recommendation: null }).client as never,
