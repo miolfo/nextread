@@ -16,6 +16,17 @@ const isbn = (body: string) => {
 };
 
 describe("recommendation candidate selection", () => {
+  it("ANDs mapped genre include and exclude clauses outside personalized subjects", () => {
+    const q = buildSubjectSearchUrl(["Fantasy", "Mystery"], "relevance", {
+      includedGenres: ["science_fiction", "fantasy"],
+      excludedGenres: ["horror"],
+      fromYear: 1900,
+      lengths: ["short", "long"],
+    }).searchParams.get("q");
+    expect(q).toBe(
+      '(subject_key:"fantasy" OR subject_key:"mystery") AND language:eng AND (subject_key:"science_fiction" OR subject_key:"fantasy") AND NOT (subject_key:"horror") AND first_publish_year:[1900 TO *] AND (number_of_pages_median:[0 TO 249] OR number_of_pages_median:[500 TO *])',
+    );
+  });
   it("builds independently optional year bounds and OR-combined page length ranges", () => {
     const from = buildSubjectSearchUrl(["Fantasy"], "relevance", {
       fromYear: 1980,

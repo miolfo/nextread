@@ -58,7 +58,9 @@ Occurrences; query ordering is preserved when navigating between pages.
 ## Recommendations engine
 
 The engine uses Goodreads ratings and Open Library subjects, not AI. Reviews,
-genre preferences, and global subject popularity do not influence results.
+global subject popularity does not influence results. Optional transient genre
+filters constrain Open Library subject keys independently of personalized subjects:
+include matches any selected genre and exclude rejects any selected genre.
 
 1. **Sample books.** Authenticated `POST /api/recommendations` loads only the
    selected import. It accepts numeric ratings from 0–5, randomizes ties, and
@@ -79,7 +81,9 @@ genre preferences, and global subject popularity do not influence results.
    edition. Optional inclusive publication-year and page-length ranges are
    explicit fielded clauses in the decoded `q` expression (including a
    parenthesized, field-qualified OR for selected length bands), not standalone
-   parameters. Requests fetch 50 works per batch and only title, author, year,
+   parameters. Genre include/exclude predicates are ANDed outside the personalized
+   subject OR. The fixed 15 keys were checked against Open Library subjects on
+   2026-11-08; provider availability can change. Requests fetch 50 works per batch and only title, author, year,
    median page count, ISBN, cover, and work-key fields. Relevance omits sorting; Highest rated adds
    `sort=rating` and a minimum of ten ratings; Random adds `sort=random`.
 4. **Filter and save.** Filter and deduplicate results, backfilling up to three batches/150 candidates (one for Random),

@@ -136,6 +136,19 @@ describe("POST /api/recommendations", () => {
     ).toBe(400);
     expect((await post({ importId, lengths: ["gigantic"] })).status).toBe(400);
     expect((await post({ importId, lengths: "short" })).status).toBe(400);
+    expect((await post({ importId, includedGenres: ["Other"] })).status).toBe(
+      400,
+    );
+    expect((await post({ importId, excludedGenres: [4] })).status).toBe(400);
+    expect(
+      (
+        await post({
+          importId,
+          includedGenres: ["Fantasy"],
+          excludedGenres: ["Fantasy"],
+        })
+      ).status,
+    ).toBe(400);
     expect(from).not.toHaveBeenCalled();
   });
 
@@ -417,6 +430,8 @@ describe("POST /api/recommendations", () => {
       fromYear: 1980,
       toYear: 2024,
       lengths: ["medium", "short", "medium"],
+      includedGenres: ["Fantasy", "Science Fiction", "Fantasy"],
+      excludedGenres: ["Horror"],
     });
     expect(response.status).toBe(200);
     const result = await response.json();
@@ -448,7 +463,7 @@ describe("POST /api/recommendations", () => {
     });
     const search = urls.find((url) => url.pathname === "/search.json")!;
     expect(search.searchParams.get("q")).toBe(
-      '(subject_key:"fantasy") AND language:eng AND first_publish_year:[1980 TO 2024] AND (number_of_pages_median:[0 TO 249] OR number_of_pages_median:[250 TO 499])',
+      '(subject_key:"fantasy") AND language:eng AND (subject_key:"science_fiction" OR subject_key:"fantasy") AND NOT (subject_key:"horror") AND first_publish_year:[1980 TO 2024] AND (number_of_pages_median:[0 TO 249] OR number_of_pages_median:[250 TO 499])',
     );
     expect(search.searchParams.has("first_publish_year")).toBe(false);
     expect(search.searchParams.has("number_of_pages_median")).toBe(false);
@@ -470,6 +485,8 @@ describe("POST /api/recommendations", () => {
         fromYear: 1980,
         toYear: 2024,
         lengths: ["short", "medium"],
+        includedGenres: ["science_fiction", "fantasy"],
+        excludedGenres: ["horror"],
       },
       subjects: ["Fantasy"],
       sort: "relevance",
@@ -520,6 +537,67 @@ describe("POST /api/recommendations", () => {
     await post();
     expect(rpc).toHaveBeenCalledTimes(2);
     expect(rpc.mock.calls[1][1]).toEqual(rpc.mock.calls[0][1]);
+  });
+
+  it("keeps genre and other filters identical across backfill requests", async () => {
+    const fixture = isbn(25);
+    pages = [
+      {
+        data: [
+          { title: "imported", isbn: fixture, isbn13: "", my_rating: "5" },
+        ],
+        error: null,
+      },
+    ];
+    const searchUrls: URL[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/search.json") {
+        searchUrls.push(url);
+        const docs =
+          url.searchParams.get("offset") === "0"
+            ? Array.from({ length: 50 }, (_, index) => ({
+                key: `/works/OL${index + 10}W`,
+                title: `No identity ${index}`,
+              }))
+            : [
+                {
+                  key: "/works/OL999W",
+                  title: "Backfill result",
+                  author_name: ["Unique Writer"],
+                },
+              ];
+        return Promise.resolve(new Response(JSON.stringify({ docs })));
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            [`ISBN:${fixture}`]: { subjects: [{ name: "Fantasy" }] },
+          }),
+        ),
+      );
+    });
+
+    const response = await post({
+      importId,
+      fromYear: 1950,
+      toYear: 2000,
+      lengths: ["short", "long"],
+      includedGenres: ["Fantasy", "Science Fiction"],
+      excludedGenres: ["Horror"],
+    });
+
+    expect(response.status).toBe(200);
+    expect(searchUrls).toHaveLength(2);
+    expect(searchUrls.map((url) => url.searchParams.get("offset"))).toEqual([
+      "0",
+      "50",
+    ]);
+    const queries = searchUrls.map((url) => url.searchParams.get("q"));
+    expect(queries[0]).toBe(queries[1]);
+    expect(queries[0]).toBe(
+      '(subject_key:"fantasy") AND language:eng AND (subject_key:"science_fiction" OR subject_key:"fantasy") AND NOT (subject_key:"horror") AND first_publish_year:[1950 TO 2000] AND (number_of_pages_median:[0 TO 249] OR number_of_pages_median:[500 TO *])',
+    );
   });
 
   it("returns unavailable when candidate persistence fails or stalls", async () => {

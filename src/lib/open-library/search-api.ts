@@ -90,6 +90,8 @@ export async function searchBySubjects(
                   ? { toYear: filters.toYear }
                   : {}),
                 lengths: filters.lengths ?? [],
+                includedGenres: filters.includedGenres ?? [],
+                excludedGenres: filters.excludedGenres ?? [],
               },
               subjects,
               sort,

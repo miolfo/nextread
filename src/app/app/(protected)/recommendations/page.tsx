@@ -21,7 +21,8 @@ export default async function RecommendationsPage() {
       <PageIntroduction centered title="Get book recommendations">
         Find books from your reading history, ordered by relevance, rating, or
         at random. All filters are optional. Recommendations target 10 books and
-        may return fewer; genre filtering is not active yet.
+        may return fewer. Include filters match any selected genre; exclude
+        filters remove books matching any selected genre.
       </PageIntroduction>
       <RecommendationControls
         imports={(data ?? []) as RecommendationImport[]}

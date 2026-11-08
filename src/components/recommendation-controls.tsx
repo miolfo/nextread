@@ -88,6 +88,8 @@ export function RecommendationControls({
           fromYear: fromYear ? Number(fromYear) : undefined,
           toYear: toYear ? Number(toYear) : undefined,
           ...(lengths.length ? { lengths } : {}),
+          ...(included.length ? { includedGenres: included } : {}),
+          ...(excluded.length ? { excludedGenres: excluded } : {}),
         }),
       });
       const result: unknown = await response.json();
@@ -152,26 +154,24 @@ export function RecommendationControls({
         <ControlRow
           icon={BookOpen}
           title="Include genres"
-          description="Genre filtering is not yet applied to results."
+          description="Match at least one selected genre."
         >
           <GenreSelector
             label="Include genres"
             selected={included}
             onToggle={(genre) => toggleGenre(genre, "include")}
-            disabled
           />
         </ControlRow>
 
         <ControlRow
           icon={BookOpen}
           title="Exclude genres"
-          description="Genre filtering is not yet applied to results."
+          description="Exclude books matching any selected genre."
         >
           <GenreSelector
             label="Exclude genres"
             selected={excluded}
             onToggle={(genre) => toggleGenre(genre, "exclude")}
-            disabled
           />
         </ControlRow>
 

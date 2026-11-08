@@ -110,7 +110,7 @@ This route remains the recommendation configuration screen, based on `designs/Ne
 - Sorted by selector, initially **Relevance**: Relevance, Highest rated, or Random.
 - Publication-year and page-length preferences are transient and applied server-side to every Open Library search/backfill request.
 - Open Library filters are explicit fielded range clauses in `q`; development search logs contain only normalized filters/request metadata, and completion logs contain only the result count (never result content).
-- Include-genres and exclude-genres controls are disabled placeholders with explanatory copy; genre filtering is not applied.
+- Include/exclude genre selectors are enabled, searchable, transient controls. Inclusion matches any selected Open Library subject; exclusion rejects any selected subject. Each filter is optional and empty means unrestricted.
 - Import selector populated from the signed-in user's `import_runs` metadata, showing filename and upload date. Import records are persisted; the selected import is transient and is not persisted.
 - One “Generate recommendations” action.
 
@@ -118,14 +118,9 @@ This route remains the recommendation configuration screen, based on `designs/Ne
 
 Use the same small static list for both genre controls:
 
-- Science Fiction
-- Fantasy
-- Mystery
-- Thriller
-- Romance
-- Historical Fiction
-- Literary Fiction
-- Nonfiction
+- Science Fiction (`science_fiction`), Fantasy (`fantasy`), Mystery (`mystery`), Thriller (`thriller`), Romance (`romance`), Historical Fiction (`historical_fiction`), Horror (`horror`), Adventure (`adventure`), Biography (`biography`), Autobiography (`autobiography`), History (`history`), Science (`science`), Philosophy (`philosophy`), Poetry (`poetry`), Young Adult (`young_adult`).
+
+These 15 subject keys were verified against Open Library `/subjects/{key}.json?limit=0` on 2026-11-08; availability/counts can change.
 
 Start genre selections empty. Selected genres can be added and removed with standard shadcn composition (for example, `Popover`, `Command`, and `Badge`). Do not allow a genre to be included and excluded simultaneously; selecting it in one control removes it from the other.
 
@@ -213,4 +208,4 @@ Confirmed implementation choices:
 - Included and excluded genres: initially empty.
 - Supabase email/password authentication protects `/app/*`. Import runs and book records are persisted; recommendation preferences and selected import are not persisted.
 
-The fixed genre list and focus options above remain the proposed options; no further decisions are required to begin the scoped implementation.
+Genre selection and its verified subject-key mapping are implemented as documented above.

@@ -103,6 +103,39 @@ describe("searchBySubjects", () => {
     );
   });
 
+  it("logs normalized genre subject keys in development, and stays silent in production", async () => {
+    const fetcher = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ docs: [] })));
+    vi.stubEnv("NODE_ENV", "development");
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    await searchBySubjects(["Fantasy"], Date.now() + 20_000, "relevance", 0, {
+      includedGenres: ["science_fiction", "fantasy"],
+      excludedGenres: ["horror"],
+    });
+    const diagnostic = JSON.parse(log.mock.calls[0][1] as string);
+    expect(diagnostic.filters).toMatchObject({
+      includedGenres: ["science_fiction", "fantasy"],
+      excludedGenres: ["horror"],
+    });
+    expect(
+      new URL(String(fetcher.mock.calls[0][0])).searchParams.get("q"),
+    ).toContain(
+      'AND (subject_key:"science_fiction" OR subject_key:"fantasy") AND NOT (subject_key:"horror")',
+    );
+
+    vi.restoreAllMocks();
+    vi.stubEnv("NODE_ENV", "production");
+    const productionLog = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ docs: [] })),
+    );
+    await searchBySubjects(["Fantasy"], Date.now() + 20_000, "relevance", 0, {
+      includedGenres: ["science_fiction"],
+    });
+    expect(productionLog).not.toHaveBeenCalled();
+  });
+
   it.each(["test", "production"])(
     "does not log the full URL in %s",
     async (environment) => {

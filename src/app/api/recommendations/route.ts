@@ -12,6 +12,7 @@ import { searchBySubjects, SearchFailure } from "@/lib/open-library/search-api";
 import { persistSubjectCandidates } from "@/lib/subjects/subject-candidates";
 import { persistRecommendations } from "@/lib/recommendations/persist";
 import { createClient } from "@/lib/supabase/server";
+import { GENRES, GENRE_SUBJECTS, type Genre } from "@/lib/genres";
 
 const BOOK_LENGTHS = ["short", "medium", "long"] as const;
 
@@ -48,8 +49,18 @@ export async function POST(request: Request) {
   let fromYear: unknown;
   let toYear: unknown;
   let lengths: unknown;
+  let includedGenres: unknown;
+  let excludedGenres: unknown;
   try {
-    ({ importId, sort, fromYear, toYear, lengths } = await request.json());
+    ({
+      importId,
+      sort,
+      fromYear,
+      toYear,
+      lengths,
+      includedGenres,
+      excludedGenres,
+    } = await request.json());
   } catch {
     return Response.json({ error: "Invalid request" }, { status: 400 });
   }
@@ -78,6 +89,23 @@ export async function POST(request: Request) {
         lengths.some((item) => !BOOK_LENGTHS.includes(item))))
   )
     return Response.json({ error: "Invalid request" }, { status: 400 });
+  const validGenres = (value: unknown) =>
+    value === undefined ||
+    (Array.isArray(value) &&
+      value.length <= GENRES.length &&
+      value.every(
+        (genre) => typeof genre === "string" && GENRES.includes(genre as Genre),
+      ));
+  if (!validGenres(includedGenres) || !validGenres(excludedGenres))
+    return Response.json({ error: "Invalid request" }, { status: 400 });
+  const included = GENRES.filter((genre) =>
+    (includedGenres as unknown[] | undefined)?.includes(genre),
+  );
+  const excluded = GENRES.filter((genre) =>
+    (excludedGenres as unknown[] | undefined)?.includes(genre),
+  );
+  if (included.some((genre) => excluded.includes(genre)))
+    return Response.json({ error: "Invalid request" }, { status: 400 });
   const selectedLengths = new Set(lengths as (typeof BOOK_LENGTHS)[number][]);
   const filters: RecommendationFilters = {
     ...(fromYear !== undefined ? { fromYear: fromYear as number } : {}),
@@ -86,6 +114,12 @@ export async function POST(request: Request) {
       ? {
           lengths: BOOK_LENGTHS.filter((length) => selectedLengths.has(length)),
         }
+      : {}),
+    ...(included.length
+      ? { includedGenres: included.map((genre) => GENRE_SUBJECTS[genre]) }
+      : {}),
+    ...(excluded.length
+      ? { excludedGenres: excluded.map((genre) => GENRE_SUBJECTS[genre]) }
       : {}),
   };
   const supabase = await createClient();

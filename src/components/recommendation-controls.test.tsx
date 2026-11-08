@@ -59,16 +59,56 @@ describe("Recommendation controls", () => {
     expect(screen.queryByRole("option")).not.toBeInTheDocument();
   });
 
-  it("removes count control and disables genre controls", () => {
+  it("removes count control and enables genre controls", () => {
     render(<RecommendationControls />);
     expect(
       screen.queryByLabelText("Number of recommendations"),
     ).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Include genres")).toBeEnabled();
+    expect(screen.getByLabelText("Exclude genres")).toBeEnabled();
+  });
+
+  it("searches, selects, moves, removes, and submits genre membership", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(JSON.stringify({ error: "Unavailable" }), { status: 503 }),
+      );
+    render(<RecommendationControls imports={imports} />);
+    await user.click(screen.getByLabelText("Include genres"));
+    await user.type(
+      screen.getByLabelText("Search include genres"),
+      "science fiction",
+    );
+    const option = await screen.findByRole("option", {
+      name: "Science Fiction",
+    });
+    await user.click(option);
+    expect(option).toHaveAttribute("aria-checked", "true");
+    await user.click(screen.getByLabelText("Exclude genres"));
+    await user.click(
+      await screen.findByRole("option", { name: "Science Fiction" }),
+    );
     expect(
-      screen.getAllByText(/Genre filtering is not yet applied/),
-    ).toHaveLength(2);
-    expect(screen.getByLabelText("Include genres")).toBeDisabled();
-    expect(screen.getByLabelText("Exclude genres")).toBeDisabled();
+      screen.getByLabelText("Remove Science Fiction from exclude genres"),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByLabelText("Remove Science Fiction from exclude genres"),
+    );
+    await user.click(screen.getByRole("combobox", { name: "Import" }));
+    await user.click(
+      await screen.findByRole("option", { name: /library.csv/ }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Generate recommendations" }),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/recommendations",
+      expect.objectContaining({
+        body: JSON.stringify({ importId: "new", sort: "relevance" }),
+      }),
+    );
   });
 
   it("submits the selected sort option", async () => {

@@ -24,6 +24,8 @@ export type RecommendationFilters = {
   fromYear?: number;
   toYear?: number;
   lengths?: ("short" | "medium" | "long")[];
+  includedGenres?: string[];
+  excludedGenres?: string[];
 };
 
 const completeIsbns = new WeakMap<OpenLibraryBook, string[]>();
@@ -103,6 +105,16 @@ export function buildSubjectSearchUrl(
     .map((key) => `subject_key:"${key.replace(/[\\"]/g, "\\$&")}"`)
     .join(" OR ");
   const clauses = [`(${subjectQuery})`, "language:eng"];
+  if (filters.includedGenres?.length) {
+    clauses.push(
+      `(${filters.includedGenres.map((key) => `subject_key:"${key}"`).join(" OR ")})`,
+    );
+  }
+  if (filters.excludedGenres?.length) {
+    clauses.push(
+      `NOT (${filters.excludedGenres.map((key) => `subject_key:"${key}"`).join(" OR ")})`,
+    );
+  }
   if (filters.fromYear !== undefined || filters.toYear !== undefined) {
     clauses.push(
       `first_publish_year:[${filters.fromYear ?? "*"} TO ${filters.toYear ?? "*"}]`,
