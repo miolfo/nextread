@@ -20,6 +20,11 @@ export type OpenLibraryBook = {
 };
 
 export type RecommendationSort = "relevance" | "rating" | "random";
+export type RecommendationFilters = {
+  fromYear?: number;
+  toYear?: number;
+  lengths?: ("short" | "medium" | "long")[];
+};
 
 const completeIsbns = new WeakMap<OpenLibraryBook, string[]>();
 
@@ -77,6 +82,7 @@ export function selectSubjects(
 export function buildSubjectSearchUrl(
   subjects: string[],
   sort: RecommendationSort = "relevance",
+  filters: RecommendationFilters = {},
 ): URL {
   const url = new URL("https://openlibrary.org/search.json");
   // Open Library's str_to_key() drops these ASCII characters, lowercases,
@@ -93,10 +99,26 @@ export function buildSubjectSearchUrl(
       ),
     ),
   ];
-  const query = keys
+  const subjectQuery = keys
     .map((key) => `subject_key:"${key.replace(/[\\"]/g, "\\$&")}"`)
     .join(" OR ");
-  url.searchParams.set("q", `(${query}) AND language:eng`);
+  const clauses = [`(${subjectQuery})`, "language:eng"];
+  if (filters.fromYear !== undefined || filters.toYear !== undefined) {
+    clauses.push(
+      `first_publish_year:[${filters.fromYear ?? "*"} TO ${filters.toYear ?? "*"}]`,
+    );
+  }
+  if (filters.lengths?.length) {
+    const ranges = filters.lengths.map((length) =>
+      length === "short"
+        ? "number_of_pages_median:[0 TO 249]"
+        : length === "medium"
+          ? "number_of_pages_median:[250 TO 499]"
+          : "number_of_pages_median:[500 TO *]",
+    );
+    clauses.push(`(${ranges.join(" OR ")})`);
+  }
+  url.searchParams.set("q", clauses.join(" AND "));
   url.searchParams.set("limit", "50");
   if (sort === "rating") {
     url.searchParams.set("sort", "rating");
@@ -106,7 +128,7 @@ export function buildSubjectSearchUrl(
   }
   url.searchParams.set(
     "fields",
-    "key,title,author_name,author_key,first_publish_year,isbn,cover_i",
+    "key,title,author_name,author_key,first_publish_year,number_of_pages_median,isbn,cover_i",
   );
   if (url.href.length > 8_192)
     throw new Error("subject search query exceeds limit");

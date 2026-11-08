@@ -4,6 +4,7 @@ import {
   selectSubjects,
   type Book,
   type RecommendationSort,
+  type RecommendationFilters,
 } from "@/lib/recommendations-engine";
 import { loadImportBooks } from "@/lib/recommendations/import-books";
 import { lookupBookSubjects } from "@/lib/open-library/books-api";
@@ -11,6 +12,8 @@ import { searchBySubjects, SearchFailure } from "@/lib/open-library/search-api";
 import { persistSubjectCandidates } from "@/lib/subjects/subject-candidates";
 import { persistRecommendations } from "@/lib/recommendations/persist";
 import { createClient } from "@/lib/supabase/server";
+
+const BOOK_LENGTHS = ["short", "medium", "long"] as const;
 
 export async function POST(request: Request) {
   const requestStartedAt = Date.now();
@@ -42,8 +45,11 @@ export async function POST(request: Request) {
   };
   let importId: unknown;
   let sort: unknown;
+  let fromYear: unknown;
+  let toYear: unknown;
+  let lengths: unknown;
   try {
-    ({ importId, sort } = await request.json());
+    ({ importId, sort, fromYear, toYear, lengths } = await request.json());
   } catch {
     return Response.json({ error: "Invalid request" }, { status: 400 });
   }
@@ -56,6 +62,32 @@ export async function POST(request: Request) {
     !/^[0-9a-f-]{36}$/i.test(importId)
   )
     return Response.json({ error: "Invalid request" }, { status: 400 });
+  const validYear = (value: unknown) =>
+    value === undefined ||
+    (Number.isInteger(value) &&
+      (value as number) >= 0 &&
+      (value as number) <= 2100);
+  if (
+    !validYear(fromYear) ||
+    !validYear(toYear) ||
+    (fromYear !== undefined &&
+      toYear !== undefined &&
+      (fromYear as number) > (toYear as number)) ||
+    (lengths !== undefined &&
+      (!Array.isArray(lengths) ||
+        lengths.some((item) => !BOOK_LENGTHS.includes(item))))
+  )
+    return Response.json({ error: "Invalid request" }, { status: 400 });
+  const selectedLengths = new Set(lengths as (typeof BOOK_LENGTHS)[number][]);
+  const filters: RecommendationFilters = {
+    ...(fromYear !== undefined ? { fromYear: fromYear as number } : {}),
+    ...(toYear !== undefined ? { toYear: toYear as number } : {}),
+    ...(BOOK_LENGTHS.some((length) => selectedLengths.has(length))
+      ? {
+          lengths: BOOK_LENGTHS.filter((length) => selectedLengths.has(length)),
+        }
+      : {}),
+  };
   const supabase = await createClient();
   const {
     data: { user },
@@ -133,6 +165,7 @@ export async function POST(request: Request) {
         deadline,
         (sort ?? "relevance") as RecommendationSort,
         page * 50,
+        filters,
       );
       searchCandidates.push(...batch);
       recommendations = excludeImportedAndDeduplicate(searchCandidates, books);
@@ -147,8 +180,8 @@ export async function POST(request: Request) {
   if (process.env.NODE_ENV === "development") {
     try {
       console.log(
-        "Recommendation search candidates",
-        JSON.stringify(recommendations, null, 2),
+        "Recommendation search complete",
+        JSON.stringify({ resultCount: recommendations.length }),
       );
     } catch {
       // Diagnostics must not affect recommendation delivery.

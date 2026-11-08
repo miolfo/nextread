@@ -3,6 +3,7 @@ import {
   validateSearchBooks,
   type OpenLibraryBook,
   type RecommendationSort,
+  type RecommendationFilters,
 } from "@/lib/recommendations-engine";
 import { waitForOpenLibrarySlot } from "@/lib/open-library/rate-limit";
 
@@ -33,6 +34,7 @@ export async function searchBySubjects(
   deadline: number,
   sort: RecommendationSort = "relevance",
   offset = 0,
+  filters: RecommendationFilters = {},
 ): Promise<OpenLibraryBook[]> {
   if (!subjects.length) return [];
   const startedAt = Date.now();
@@ -69,14 +71,35 @@ export async function searchBySubjects(
   try {
     let url: URL;
     try {
-      url = buildSubjectSearchUrl(subjects, sort);
+      url = buildSubjectSearchUrl(subjects, sort, filters);
       url.searchParams.set("offset", String(offset));
     } catch {
       throw failure("query-too-large");
     }
     if (process.env.NODE_ENV === "development") {
       try {
-        console.log("Open Library search request URL", url.href);
+        console.log(
+          "Open Library recommendation search",
+          JSON.stringify(
+            {
+              filters: {
+                ...(filters.fromYear !== undefined
+                  ? { fromYear: filters.fromYear }
+                  : {}),
+                ...(filters.toYear !== undefined
+                  ? { toYear: filters.toYear }
+                  : {}),
+                lengths: filters.lengths ?? [],
+              },
+              subjects,
+              sort,
+              pagination: { limit: 50, offset },
+              url: url.href,
+            },
+            null,
+            2,
+          ),
+        );
       } catch {
         // Diagnostics must not affect the search request.
       }

@@ -16,6 +16,56 @@ const isbn = (body: string) => {
 };
 
 describe("recommendation candidate selection", () => {
+  it("builds independently optional year bounds and OR-combined page length ranges", () => {
+    const from = buildSubjectSearchUrl(["Fantasy"], "relevance", {
+      fromYear: 1980,
+    });
+    expect(from.searchParams.get("q")).toBe(
+      '(subject_key:"fantasy") AND language:eng AND first_publish_year:[1980 TO *]',
+    );
+    expect(
+      buildSubjectSearchUrl(["Fantasy"], "relevance", {
+        toYear: 2020,
+      }).searchParams.get("q"),
+    ).toBe(
+      '(subject_key:"fantasy") AND language:eng AND first_publish_year:[* TO 2020]',
+    );
+    const both = buildSubjectSearchUrl(["Fantasy"], "relevance", {
+      fromYear: 1900,
+      toYear: 2020,
+      lengths: ["short", "long"],
+    });
+    expect(both.searchParams.get("q")).toBe(
+      '(subject_key:"fantasy") AND language:eng AND first_publish_year:[1900 TO 2020] AND (number_of_pages_median:[0 TO 249] OR number_of_pages_median:[500 TO *])',
+    );
+    expect([...both.searchParams.keys()]).not.toContain("first_publish_year");
+    expect([...both.searchParams.keys()]).not.toContain(
+      "number_of_pages_median",
+    );
+    for (const [length, range] of [
+      ["short", "[0 TO 249]"],
+      ["medium", "[250 TO 499]"],
+      ["long", "[500 TO *]"],
+    ] as const) {
+      const q = buildSubjectSearchUrl(["Fantasy"], "relevance", {
+        lengths: [length],
+      }).searchParams.get("q");
+      expect(q).toContain(`AND (number_of_pages_median:${range})`);
+    }
+    expect(
+      buildSubjectSearchUrl(["Fantasy"], "relevance", {
+        fromYear: 2020,
+        toYear: 2020,
+      }).searchParams.get("q"),
+    ).toContain("first_publish_year:[2020 TO 2020]");
+    expect(
+      buildSubjectSearchUrl(["Fantasy"], "relevance", {
+        lengths: ["short", "medium", "long"],
+      }).searchParams.get("q"),
+    ).toContain(
+      "number_of_pages_median:[0 TO 249] OR number_of_pages_median:[250 TO 499] OR number_of_pages_median:[500 TO *]",
+    );
+  });
   it("normalizes selected subjects to Open Library subject keys and constrains the whole OR to English editions", () => {
     const url = buildSubjectSearchUrl([
       " Science / Fiction: (A.B)'s ",

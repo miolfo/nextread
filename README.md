@@ -76,12 +76,15 @@ genre preferences, and global subject popularity do not influence results.
    converted from spaces to underscores, deduplicated, and escaped. One GET to
    `https://openlibrary.org/search.json` joins exact `subject_key` clauses in a
    parenthesized OR group, then adds `AND language:eng` to require an English
-   edition. URL-encoded parameters request ten works and only title, author, year,
-   ISBN, cover, and work-key fields. Relevance omits sorting; Highest rated adds
+   edition. Optional inclusive publication-year and page-length ranges are
+   explicit fielded clauses in the decoded `q` expression (including a
+   parenthesized, field-qualified OR for selected length bands), not standalone
+   parameters. Requests fetch 50 works per batch and only title, author, year,
+   median page count, ISBN, cover, and work-key fields. Relevance omits sorting; Highest rated adds
    `sort=rating` and a minimum of ten ratings; Random adds `sort=random`.
-4. **Filter and save.** Validate the first ten documents, remove duplicate works,
+4. **Filter and save.** Filter and deduplicate results, backfilling up to three batches/150 candidates (one for Random),
    and exclude ISBN matches against the entire selected import. There is no
-   backfill or unrelated fallback. Save the ordered results atomically, including
+   unrelated fallback. Save the ordered results atomically, including
    successful empty sets, then open the saved results page.
 
 The pipeline shares a 40-second deadline; search gets at most 30 seconds within

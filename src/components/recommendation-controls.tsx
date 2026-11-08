@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { BookOpen, Sparkles, Target } from "lucide-react";
+import { BookOpen, Database, Sparkles, Target } from "lucide-react";
 import { GenreSelector, type Genre } from "@/components/genre-selector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { isValidRecommendationId } from "@/lib/recommendations/results";
 import {
   Select,
@@ -43,11 +44,24 @@ export function RecommendationControls({
   const [sort, setSort] =
     useState<(typeof SORTS)[number]["value"]>("relevance");
   const [selectedImport, setSelectedImport] = useState("");
+  const [fromYear, setFromYear] = useState("");
+  const [toYear, setToYear] = useState("");
+  const [lengths, setLengths] = useState<string[]>([]);
   const [included, setIncluded] = useState<Genre[]>([]);
   const [excluded, setExcluded] = useState<Genre[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(false);
   const selectedImportData = imports.find((item) => item.id === selectedImport);
+  const reversedYears =
+    fromYear !== "" && toYear !== "" && Number(fromYear) > Number(toYear);
+  const invalidYear = [fromYear, toYear].some(
+    (year) =>
+      year !== "" &&
+      (!Number.isInteger(Number(year)) ||
+        Number(year) < 0 ||
+        Number(year) > 2100),
+  );
+  const invalidFilters = reversedYears || invalidYear;
 
   function toggleGenre(genre: Genre, target: "include" | "exclude") {
     const setTarget = target === "include" ? setIncluded : setExcluded;
@@ -61,14 +75,20 @@ export function RecommendationControls({
   }
 
   async function recommend() {
-    if (pending || !selectedImport) return;
+    if (pending || !selectedImport || invalidFilters) return;
     setPending(true);
     setError(false);
     try {
       const response = await fetch("/api/recommendations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ importId: selectedImport, sort }),
+        body: JSON.stringify({
+          importId: selectedImport,
+          sort,
+          fromYear: fromYear ? Number(fromYear) : undefined,
+          toYear: toYear ? Number(toYear) : undefined,
+          ...(lengths.length ? { lengths } : {}),
+        }),
       });
       const result: unknown = await response.json();
       if (
@@ -97,7 +117,7 @@ export function RecommendationControls({
   }
 
   return (
-    <Card className="mx-auto w-full max-w-4xl">
+    <Card className="mx-auto w-full max-w-5xl">
       <CardContent className="space-y-0 p-0">
         <ControlRow
           icon={Target}
@@ -141,6 +161,7 @@ export function RecommendationControls({
             disabled
           />
         </ControlRow>
+
         <ControlRow
           icon={BookOpen}
           title="Exclude genres"
@@ -154,18 +175,92 @@ export function RecommendationControls({
           />
         </ControlRow>
 
-        <section
-          className="space-y-3 border-t p-5 sm:p-6"
-          aria-labelledby="import-heading"
+        <ControlRow
+          icon={Target}
+          title="Publication year"
+          description="Limit results to books published within a year range."
         >
-          <div>
-            <h2 id="import-heading" className="font-semibold">
-              Import to use
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Choose a Goodreads import for your recommendations.
-            </p>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="space-y-1 text-sm">
+              From year
+              <Input
+                aria-label="From year"
+                type="number"
+                min="0"
+                max="2100"
+                step="1"
+                value={fromYear}
+                onChange={(event) => setFromYear(event.target.value)}
+                aria-invalid={invalidYear || reversedYears}
+              />
+            </label>
+            <label className="space-y-1 text-sm">
+              To year
+              <Input
+                aria-label="To year"
+                type="number"
+                min="0"
+                max="2100"
+                step="1"
+                value={toYear}
+                onChange={(event) => setToYear(event.target.value)}
+                aria-invalid={invalidYear || reversedYears}
+              />
+            </label>
           </div>
+          {invalidYear ? (
+            <p role="alert" className="col-span-full text-sm text-destructive">
+              Enter whole years from 0 through 2100.
+            </p>
+          ) : reversedYears ? (
+            <p role="alert" className="col-span-full text-sm text-destructive">
+              From year must be less than or equal to To year.
+            </p>
+          ) : null}
+        </ControlRow>
+        <ControlRow
+          icon={BookOpen}
+          title="Book length"
+          description="Filter by approximate book length."
+        >
+          <div className="flex flex-wrap gap-4">
+            {(
+              [
+                ["short", "Under 250 pages"],
+                ["medium", "250–499 pages"],
+                ["long", "500 pages or more"],
+              ] as const
+            ).map(([length, detail]) => (
+              <label key={length} className="flex min-w-24 items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={lengths.includes(length)}
+                  onChange={(event) =>
+                    setLengths((current) =>
+                      event.target.checked
+                        ? [...current, length]
+                        : current.filter((item) => item !== length),
+                    )
+                  }
+                />
+                <span className="grid">
+                  <span className="font-medium">
+                    {length[0].toUpperCase() + length.slice(1)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {detail}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </ControlRow>
+
+        <ControlRow
+          icon={Database}
+          title="Import"
+          description="Choose a Goodreads import for your recommendations."
+        >
           {importError ? (
             <p role="alert" className="text-sm text-destructive">
               Your imports couldn’t be loaded. Try again later.
@@ -179,7 +274,7 @@ export function RecommendationControls({
               value={selectedImport}
               onValueChange={(value) => value && setSelectedImport(value)}
             >
-              <SelectTrigger aria-label="Import to use" className="w-full">
+              <SelectTrigger aria-label="Import" className="w-full">
                 <SelectValue placeholder="Select an import">
                   {selectedImportData
                     ? `${selectedImportData.original_filename || "Filename unavailable"} — ${formatImportDate(selectedImportData.created_at)}`
@@ -196,7 +291,7 @@ export function RecommendationControls({
               </SelectContent>
             </Select>
           )}
-        </section>
+        </ControlRow>
       </CardContent>
       <CardFooter className="border-t p-5 sm:p-6">
         {error && (
@@ -207,7 +302,7 @@ export function RecommendationControls({
         <Button
           type="button"
           className="w-full"
-          disabled={pending || !selectedImport}
+          disabled={pending || !selectedImport || invalidFilters}
           onClick={() => void recommend()}
         >
           <Sparkles aria-hidden="true" />

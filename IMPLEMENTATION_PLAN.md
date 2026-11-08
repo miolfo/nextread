@@ -93,7 +93,7 @@ Route sources are `src/app/page.tsx`, `src/app/app/login/page.tsx`, `src/app/app
 
 ## 8. Recommendations page — `/app/recommendations`
 
-This route remains the recommendation configuration screen, based on `designs/Next Read Finder Recommendations v2.png`. It queries the signed-in user's import metadata and renders `RecommendationControls`; see the unified form and behavior below.
+This route remains the recommendation configuration screen, based on `designs/Next Read Recommendations Panel.png` (content/layout reference) and the earlier v2 design. It queries the signed-in user's import metadata and renders `RecommendationControls`; see the unified form and behavior below.
 
 `/app/recommendation-results` displays persisted books for a recommendation ID, with decorative CSS cover placeholders, responsive four-item pagination, and a “Generate again” action returning to configuration. It never substitutes fictional books when data is missing or unavailable.
 
@@ -102,11 +102,14 @@ This route remains the recommendation configuration screen, based on `designs/Ne
 - Heading: “Get book recommendations”.
 - Brief explanation of the unified recommendation form.
 - One responsive form based on `designs/Next Read Finder Recommendations v2.png`.
+- Optional inclusive From/To first-publication-year bounds (either may be omitted; values must be whole years 0–2100 and reversed bounds are rejected) and optional multi-select approximate lengths: short (<250 pages), medium (250–499), long (500+); no selected length is unrestricted.
 
 ### Unified recommendation form
 
 - Recommendation generation targets 10 results; there is no count control and fewer results are acceptable.
 - Sorted by selector, initially **Relevance**: Relevance, Highest rated, or Random.
+- Publication-year and page-length preferences are transient and applied server-side to every Open Library search/backfill request.
+- Open Library filters are explicit fielded range clauses in `q`; development search logs contain only normalized filters/request metadata, and completion logs contain only the result count (never result content).
 - Include-genres and exclude-genres controls are disabled placeholders with explanatory copy; genre filtering is not applied.
 - Import selector populated from the signed-in user's `import_runs` metadata, showing filename and upload date. Import records are persisted; the selected import is transient and is not persisted.
 - One “Generate recommendations” action.

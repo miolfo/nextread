@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RecommendationControls } from "@/components/recommendation-controls";
@@ -35,14 +35,14 @@ describe("Recommendation controls", () => {
     expect(
       screen.queryByLabelText("Number of recommendations"),
     ).not.toBeInTheDocument();
-    await user.click(screen.getByRole("combobox", { name: "Import to use" }));
+    await user.click(screen.getByRole("combobox", { name: "Import" }));
     expect(
       await screen.findByRole("option", { name: /library.csv/ }),
     ).toHaveTextContent("Oct 14, 2026");
     await user.click(screen.getByRole("option", { name: /library.csv/ }));
-    expect(
-      screen.getByRole("combobox", { name: "Import to use" }),
-    ).toHaveTextContent("library.csv");
+    expect(screen.getByRole("combobox", { name: "Import" })).toHaveTextContent(
+      "library.csv",
+    );
     unmount();
     render(<RecommendationControls imports={imports} />);
     expect(
@@ -88,7 +88,7 @@ describe("Recommendation controls", () => {
     expect(
       screen.getByRole("combobox", { name: "Sorted by" }),
     ).toHaveTextContent("Highest rated");
-    await user.click(screen.getByRole("combobox", { name: "Import to use" }));
+    await user.click(screen.getByRole("combobox", { name: "Import" }));
     await user.click(
       await screen.findByRole("option", { name: /library.csv/ }),
     );
@@ -128,7 +128,7 @@ describe("Recommendation controls", () => {
     });
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute("type", "button");
-    await user.click(screen.getByRole("combobox", { name: "Import to use" }));
+    await user.click(screen.getByRole("combobox", { name: "Import" }));
     await user.click(
       await screen.findByRole("option", { name: /library.csv/ }),
     );
@@ -149,6 +149,62 @@ describe("Recommendation controls", () => {
       `http://localhost/app/recommendation-results?recommendationId=${savedId}`,
     );
     fetchMock.mockRestore();
+  });
+
+  it("submits selected year and length filters and blocks reversed ranges", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(JSON.stringify({ error: "Unavailable" }), { status: 503 }),
+      );
+    render(<RecommendationControls imports={imports} />);
+    await user.type(screen.getByLabelText("From year"), "1990");
+    await user.type(screen.getByLabelText("To year"), "2020");
+    await user.click(screen.getByLabelText(/Short/));
+    await user.click(screen.getByLabelText(/Long/));
+    await user.click(screen.getByRole("combobox", { name: "Import" }));
+    await user.click(
+      await screen.findByRole("option", { name: /library.csv/ }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Generate recommendations" }),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/recommendations",
+      expect.objectContaining({
+        body: JSON.stringify({
+          importId: "new",
+          sort: "relevance",
+          fromYear: 1990,
+          toYear: 2020,
+          lengths: ["short", "long"],
+        }),
+      }),
+    );
+    await user.clear(screen.getByLabelText("From year"));
+    await user.type(screen.getByLabelText("From year"), "2021");
+    expect(
+      screen.getByText(/From year must be less than or equal/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Generate recommendations" }),
+    ).toBeDisabled();
+  });
+
+  it.each([
+    [-1, "Enter whole years"],
+    [2101, "Enter whole years"],
+    [2001.5, "Enter whole years"],
+  ])("rejects invalid year %s in the UI", (year, message) => {
+    render(<RecommendationControls imports={imports} />);
+    fireEvent.change(screen.getByLabelText("From year"), {
+      target: { value: String(year) },
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent(message);
+    expect(
+      screen.getByRole("button", { name: "Generate recommendations" }),
+    ).toBeDisabled();
   });
 
   const failures: [string, () => Promise<Response>][] = [
@@ -206,7 +262,7 @@ describe("Recommendation controls", () => {
         origin: "http://localhost",
       });
       render(<RecommendationControls imports={imports} />);
-      await user.click(screen.getByRole("combobox", { name: "Import to use" }));
+      await user.click(screen.getByRole("combobox", { name: "Import" }));
       await user.click(
         await screen.findByRole("option", { name: /library.csv/ }),
       );

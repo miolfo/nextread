@@ -130,6 +130,12 @@ describe("POST /api/recommendations", () => {
     expect((await post({ importId: "invalid" })).status).toBe(400);
     expect((await post({ importId, sort: "popular" })).status).toBe(400);
     expect((await post({ importId, sort: 4 })).status).toBe(400);
+    expect((await post({ importId, fromYear: -1 })).status).toBe(400);
+    expect(
+      (await post({ importId, fromYear: 2021, toYear: 2020 })).status,
+    ).toBe(400);
+    expect((await post({ importId, lengths: ["gigantic"] })).status).toBe(400);
+    expect((await post({ importId, lengths: "short" })).status).toBe(400);
     expect(from).not.toHaveBeenCalled();
   });
 
@@ -406,7 +412,12 @@ describe("POST /api/recommendations", () => {
         ),
       );
     });
-    const response = await post();
+    const response = await post({
+      importId,
+      fromYear: 1980,
+      toYear: 2024,
+      lengths: ["medium", "short", "medium"],
+    });
     expect(response.status).toBe(200);
     const result = await response.json();
     expect(result).toEqual({
@@ -437,30 +448,34 @@ describe("POST /api/recommendations", () => {
     });
     const search = urls.find((url) => url.pathname === "/search.json")!;
     expect(search.searchParams.get("q")).toBe(
-      '(subject_key:"fantasy") AND language:eng',
+      '(subject_key:"fantasy") AND language:eng AND first_publish_year:[1980 TO 2024] AND (number_of_pages_median:[0 TO 249] OR number_of_pages_median:[250 TO 499])',
     );
+    expect(search.searchParams.has("first_publish_year")).toBe(false);
+    expect(search.searchParams.has("number_of_pages_median")).toBe(false);
     expect(search.searchParams.get("limit")).toBe("50");
     expect(search.searchParams.get("fields")).toBe(
-      "key,title,author_name,author_key,first_publish_year,isbn,cover_i",
+      "key,title,author_name,author_key,first_publish_year,number_of_pages_median,isbn,cover_i",
     );
     expect(search.searchParams.get("fields")).not.toContain("editions");
     const diagnostic = log.mock.calls.find(
-      (call) => call[0] === "Recommendation search candidates",
+      (call) => call[0] === "Recommendation search complete",
     );
-    expect(JSON.parse(diagnostic?.[1] as string)).toEqual([
-      {
-        key: "/works/OL2W",
-        title: "Keep candidate",
-        author_name: ["Available Author"],
-        author_key: ["/authors/OL3A"],
-        isbn: [isbn(21)],
+    expect(JSON.parse(diagnostic?.[1] as string)).toEqual({ resultCount: 1 });
+    const searchLog = log.mock.calls.find(
+      (call) => call[0] === "Open Library recommendation search",
+    );
+    const normalizedLog = JSON.parse(searchLog?.[1] as string);
+    expect(normalizedLog).toMatchObject({
+      filters: {
+        fromYear: 1980,
+        toYear: 2024,
+        lengths: ["short", "medium"],
       },
-    ]);
-    expect(JSON.parse(diagnostic?.[1] as string)).toEqual(
-      result.recommendations,
-    );
-    expect(diagnostic?.[1]).not.toContain("private import title");
-    expect(diagnostic?.[1]).not.toContain("private-user");
+      subjects: ["Fantasy"],
+      sort: "relevance",
+      pagination: { limit: 50, offset: 0 },
+      url: search.href,
+    });
   });
 
   it("aggregates exact subject names and sorts by count then alphabetically", async () => {

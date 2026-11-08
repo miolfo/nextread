@@ -7,6 +7,23 @@ afterEach(() => {
 });
 
 describe("searchBySubjects", () => {
+  it("propagates normalized filter clauses to a backfill offset", async () => {
+    const fetcher = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ docs: [] })));
+    await searchBySubjects(["Fantasy"], Date.now() + 20_000, "relevance", 50, {
+      fromYear: 1985,
+      toYear: 2024,
+      lengths: ["short", "medium"],
+    });
+    const url = new URL(String(fetcher.mock.calls[0][0]));
+    expect(url.searchParams.get("q")).toBe(
+      '(subject_key:"fantasy") AND language:eng AND first_publish_year:[1985 TO 2024] AND (number_of_pages_median:[0 TO 249] OR number_of_pages_median:[250 TO 499])',
+    );
+    expect(url.searchParams.has("first_publish_year")).toBe(false);
+    expect(url.searchParams.has("number_of_pages_median")).toBe(false);
+    expect(url.searchParams.get("offset")).toBe("50");
+  });
   it.each([
     ["relevance", undefined, undefined],
     ["rating", "rating", "[10 TO *]"],
@@ -15,11 +32,18 @@ describe("searchBySubjects", () => {
     const fetcher = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(new Response(JSON.stringify({ docs: [] })));
-    await searchBySubjects(["Fantasy"], Date.now() + 20_000, mode);
+    await searchBySubjects(["Fantasy"], Date.now() + 20_000, mode, 0, {
+      fromYear: 2000,
+      toYear: 2000,
+      lengths: ["medium"],
+    });
     const url = new URL(String(fetcher.mock.calls[0][0]));
     expect(url.searchParams.get("sort")).toBe(expectedSort ?? null);
     expect(url.searchParams.get("ratings_count")).toBe(ratings ?? null);
     expect(url.searchParams.get("limit")).toBe("50");
+    expect(url.searchParams.get("q")).toBe(
+      '(subject_key:"fantasy") AND language:eng AND first_publish_year:[2000 TO 2000] AND (number_of_pages_median:[250 TO 499])',
+    );
   });
 
   it("allows a search to succeed after the former ten-second limit", async () => {
@@ -69,13 +93,13 @@ describe("searchBySubjects", () => {
       new Response(JSON.stringify({ docs: [] })),
     );
     const expectedUrl =
-      "https://openlibrary.org/search.json?q=%28subject_key%3A%22fantasy%22+OR+subject_key%3A%22science_fiction%22%29+AND+language%3Aeng&limit=50&fields=key%2Ctitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Cisbn%2Ccover_i&offset=0";
+      "https://openlibrary.org/search.json?q=%28subject_key%3A%22fantasy%22+OR+subject_key%3A%22science_fiction%22%29+AND+language%3Aeng&limit=50&fields=key%2Ctitle%2Cauthor_name%2Cauthor_key%2Cfirst_publish_year%2Cnumber_of_pages_median%2Cisbn%2Ccover_i&offset=0";
 
     await searchBySubjects(["Fantasy", "Science Fiction"], Date.now() + 20_000);
 
     expect(log).toHaveBeenCalledWith(
-      "Open Library search request URL",
-      expectedUrl,
+      "Open Library recommendation search",
+      expect.stringContaining(expectedUrl),
     );
   });
 
@@ -107,7 +131,7 @@ describe("searchBySubjects", () => {
     const pending = searchBySubjects(["Fantasy"], Date.now() + 40_000);
     expect(fetcher).toHaveBeenCalledOnce();
     expect(log).toHaveBeenCalledWith(
-      "Open Library search request URL",
+      "Open Library recommendation search",
       expect.stringContaining("search.json"),
     );
     expect(log.mock.invocationCallOrder[0]).toBeLessThan(
