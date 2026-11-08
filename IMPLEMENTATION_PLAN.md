@@ -97,6 +97,8 @@ This route remains the recommendation configuration screen, based on `designs/Ne
 
 `/app/recommendation-results` displays persisted books for a recommendation ID, with decorative CSS cover placeholders, responsive four-item pagination, and a “Generate again” action returning to configuration. It never substitutes fictional books when data is missing or unavailable.
 
+Each saved book title links in the same tab to its Open Library work page (`https://openlibrary.org` plus the saved work key).
+
 ### Introduction
 
 - Heading: “Get book recommendations”.

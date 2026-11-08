@@ -167,7 +167,7 @@ export function RecommendationResults({
                       </div>
                     </div>
                     <h2 className="mt-3 line-clamp-2 font-serif text-lg leading-snug font-semibold">
-                      {title}
+                      <a href={`https://openlibrary.org${book.key}`}>{title}</a>
                     </h2>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {author}
