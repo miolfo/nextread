@@ -66,12 +66,15 @@ beforeEach(() => {
   pageIndex = 0;
   pendingPage = false;
   pendingOwnership = false;
-  ownership = { data: { id: importId }, error: null };
+  ownership = {
+    data: { id: importId, original_filename: "library.csv" },
+    error: null,
+  };
   pages = [{ data: [], error: null }];
   getUser.mockResolvedValue({ data: { user: { id: "private-user" } } });
   rpc.mockImplementation((name, args) => {
     const invalidBook =
-      name === "save_recommendations" &&
+      name === "save_recommendations_with_metadata" &&
       (args as { p_books: Record<string, unknown>[] }).p_books.some((book) =>
         Object.keys(book).some(
           (key) =>
@@ -448,7 +451,7 @@ describe("POST /api/recommendations", () => {
         },
       ],
     });
-    expect(rpc).toHaveBeenCalledWith("save_recommendations", {
+    expect(rpc).toHaveBeenCalledWith("save_recommendations_with_metadata", {
       p_import_run_id: importId,
       p_books: [
         {
@@ -460,6 +463,10 @@ describe("POST /api/recommendations", () => {
           cover_i: undefined,
         },
       ],
+      p_metadata: expect.objectContaining({
+        sort: "relevance",
+        subjects_used: ["Fantasy"],
+      }),
     });
     const search = urls.find((url) => url.pathname === "/search.json")!;
     expect(search.searchParams.get("q")).toBe(
@@ -701,9 +708,12 @@ describe("POST /api/recommendations", () => {
       new Response(JSON.stringify({})),
     );
     await post();
-    expect(rpc).toHaveBeenCalledWith("save_recommendations", {
+    expect(rpc).toHaveBeenCalledWith("save_recommendations_with_metadata", {
       p_import_run_id: importId,
       p_books: [],
+      p_metadata: expect.objectContaining({
+        subjects_used: [],
+      }),
     });
   });
 

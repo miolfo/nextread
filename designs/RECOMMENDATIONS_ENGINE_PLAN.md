@@ -4,7 +4,7 @@ This document records the implemented subject-collection and v1 recommendation p
 
 This approved experiment connects Generate to authenticated `POST /api/recommendations` only in local development. It requires the explicitly selected import and reads only that owner's rows using the authenticated, user-scoped Supabase client. No implicit import/history fallback is allowed. Ownership must be checked before book reads; all pages must complete within the 40-second overall deadline or the request fails closed.
 
-Each successful request is also recorded as a new historical set with its import reference, owner, creation time, and ordered Open Library work fields. The set and children are inserted by one authenticated, ownership-checking RPC; storage failures fail the endpoint. Empty successful generations are retained. Import and user deletion cascade to the sets. No uploaded file bytes or recommendation preferences are stored.
+Each successful request is also recorded as a new historical set with its import reference, owner, creation time, ordered Open Library work fields, and an atomic snapshot of applied filters, exact raw subject names selected for this search, and import filename. Never store or show normalized subject keys as the subjects-used metadata. The set and children are inserted by one authenticated, ownership-checking RPC; storage failures fail the endpoint. Empty successful generations are retained. Import and user deletion cascade to the sets. No uploaded file bytes are stored.
 
 ## Processing contract
 

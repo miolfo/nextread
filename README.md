@@ -61,6 +61,9 @@ The engine uses Goodreads ratings and Open Library subjects, not AI. Reviews,
 global subject popularity does not influence results. Optional transient genre
 filters constrain Open Library subject keys independently of personalized subjects:
 include matches any selected genre and exclude rejects any selected genre.
+Apply migrations through `20261104000000_save_recommendation_metadata.sql` before
+using saved recommendation results; the forward migration adds the atomic run
+snapshot while leaving existing rows explicitly without metadata.
 
 1. **Sample books.** Authenticated `POST /api/recommendations` loads only the
    selected import. It accepts numeric ratings from 0–5, randomizes ties, and
@@ -89,7 +92,10 @@ include matches any selected genre and exclude rejects any selected genre.
 4. **Filter and save.** Filter and deduplicate results, backfilling up to three batches/150 candidates (one for Random),
    and exclude ISBN matches against the entire selected import. There is no
    unrelated fallback. Save the ordered results atomically, including
-   successful empty sets, then open the saved results page.
+   successful empty sets, and snapshot the sort, filters, exact raw subjects used,
+   and import filename atomically with each set. Saved results display the applied
+   filters even when a successful run contains no books; older sets without a
+   metadata snapshot say it is unavailable.
 
 The pipeline shares a 40-second deadline; search gets at most 30 seconds within
 that budget. Both provider responses are capped at 2 MiB, and search URLs at

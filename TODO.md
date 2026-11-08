@@ -12,3 +12,5 @@
 - [ ] Fuzzy search/subject handling/normalization etc
 - [ ] Deleting recommendation runs and imported files
 - [ ] Link to book open library pages in results
+- [ ] better subject usage for finding recommendations
+- [ ] book page count

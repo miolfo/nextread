@@ -13,6 +13,7 @@ import { persistSubjectCandidates } from "@/lib/subjects/subject-candidates";
 import { persistRecommendations } from "@/lib/recommendations/persist";
 import { createClient } from "@/lib/supabase/server";
 import { GENRES, GENRE_SUBJECTS, type Genre } from "@/lib/genres";
+import { GENRES as GENRE_LABELS } from "@/lib/genres";
 
 const BOOK_LENGTHS = ["short", "medium", "long"] as const;
 
@@ -135,14 +136,28 @@ export async function POST(request: Request) {
   if (loaded.status === "missing")
     return Response.json({ error: "Import unavailable" }, { status: 404 });
   const books: Book[] = loaded.books;
+  const metadata = {
+    sort: (sort ?? "relevance") as RecommendationSort,
+    ...(fromYear !== undefined ? { fromYear: fromYear as number } : {}),
+    ...(toYear !== undefined ? { toYear: toYear as number } : {}),
+    lengths: BOOK_LENGTHS.filter((length) => selectedLengths.has(length)),
+    includedGenres: GENRE_LABELS.filter((genre) =>
+      included.includes(genre),
+    ).map(String),
+    excludedGenres: GENRE_LABELS.filter((genre) =>
+      excluded.includes(genre),
+    ).map(String),
+  };
   const save = async (
     recommendations: import("@/lib/recommendations-engine").OpenLibraryBook[],
+    subjectsUsed: string[] = [],
   ) => {
     try {
       const recommendationId = await persistRecommendations(
         supabase,
         importId,
         recommendations,
+        { ...metadata, subjectsUsed },
         deadline,
       );
       return Response.json({ ok: true, recommendationId, recommendations });
@@ -221,5 +236,5 @@ export async function POST(request: Request) {
       // Diagnostics must not affect recommendation delivery.
     }
   }
-  return save(recommendations);
+  return save(recommendations, subjects);
 }

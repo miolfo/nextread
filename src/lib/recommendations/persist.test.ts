@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { persistRecommendations } from "@/lib/recommendations/persist";
 
+const metadata = {
+  sort: "relevance" as const,
+  lengths: [],
+  includedGenres: [],
+  excludedGenres: [],
+  subjectsUsed: ["Raw Subject"],
+};
+
 describe("persistRecommendations", () => {
   it("saves ordered recommendations and returns the set ID, including empty sets", async () => {
     const abortSignal = vi.fn(() =>
@@ -9,11 +17,26 @@ describe("persistRecommendations", () => {
     const rpc = vi.fn(() => ({ abortSignal }));
     const supabase = { rpc } as never;
     await expect(
-      persistRecommendations(supabase, "import-id", [], Date.now() + 1000),
+      persistRecommendations(
+        supabase,
+        "import-id",
+        [],
+        metadata,
+        Date.now() + 1000,
+      ),
     ).resolves.toBe("set-id");
-    expect(rpc).toHaveBeenCalledWith("save_recommendations", {
+    expect(rpc).toHaveBeenCalledWith("save_recommendations_with_metadata", {
       p_import_run_id: "import-id",
       p_books: [],
+      p_metadata: {
+        sort: "relevance",
+        from_year: null,
+        to_year: null,
+        lengths: [],
+        included_genres: [],
+        excluded_genres: [],
+        subjects_used: ["Raw Subject"],
+      },
     });
     expect(supabase).toBeDefined();
   });
@@ -44,10 +67,16 @@ describe("persistRecommendations", () => {
     const original = structuredClone(books);
 
     await expect(
-      persistRecommendations(supabase, "import-id", books, Date.now() + 1000),
+      persistRecommendations(
+        supabase,
+        "import-id",
+        books,
+        metadata,
+        Date.now() + 1000,
+      ),
     ).resolves.toBe("set-id");
 
-    expect(rpc).toHaveBeenCalledWith("save_recommendations", {
+    expect(rpc).toHaveBeenCalledWith("save_recommendations_with_metadata", {
       p_import_run_id: "import-id",
       p_books: [
         {
@@ -67,6 +96,15 @@ describe("persistRecommendations", () => {
           cover_i: undefined,
         },
       ],
+      p_metadata: {
+        sort: "relevance",
+        from_year: null,
+        to_year: null,
+        lengths: [],
+        included_genres: [],
+        excluded_genres: [],
+        subjects_used: ["Raw Subject"],
+      },
     });
     expect(books).toEqual(original);
   });
@@ -79,7 +117,13 @@ describe("persistRecommendations", () => {
       }),
     } as never;
     await expect(
-      persistRecommendations(supabase, "import-id", [], Date.now() + 1000),
+      persistRecommendations(
+        supabase,
+        "import-id",
+        [],
+        metadata,
+        Date.now() + 1000,
+      ),
     ).rejects.toThrow();
   });
 });

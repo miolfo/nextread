@@ -102,6 +102,17 @@ export function RecommendationResults({
   const books = result.state === "loaded" ? result.books : [];
   const pageCount = Math.ceil(books.length / 4);
   const visibleBooks = books.slice(page * 4, page * 4 + 4);
+  const metadata =
+    result.state === "loaded" || result.state === "empty"
+      ? result.metadata
+      : null;
+  const filterValue = (key: string, fallback: string) => {
+    const value = metadata?.filters[key];
+    if (Array.isArray(value)) return value.length ? value.join(", ") : "None";
+    return typeof value === "string" || typeof value === "number"
+      ? String(value)
+      : fallback;
+  };
 
   return (
     <section aria-label="Book recommendations" className="space-y-8">
@@ -124,6 +135,76 @@ export function RecommendationResults({
           <RefreshCw aria-hidden="true" /> Generate again
         </Button>
       </div>
+      {(result.state === "loaded" || result.state === "empty") && (
+        <section
+          aria-label="Applied filters"
+          className="rounded-xl border bg-card p-5"
+        >
+          <h2 className="mb-4 font-serif text-xl font-semibold">
+            Applied filters
+          </h2>
+          {metadata ? (
+            <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <dt className="font-medium">Included genres</dt>
+                <dd className="mt-1 text-muted-foreground">
+                  {filterValue("included_genres", "None")}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-medium">Excluded genres</dt>
+                <dd className="mt-1 text-muted-foreground">
+                  {filterValue("excluded_genres", "None")}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-medium">Sorted by</dt>
+                <dd className="mt-1 text-muted-foreground">
+                  {metadata.filters.sort === "rating"
+                    ? "Highest rated"
+                    : metadata.filters.sort === "random"
+                      ? "Random"
+                      : metadata.filters.sort === "relevance"
+                        ? "Relevance"
+                        : "Unavailable"}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-medium">Publication year range</dt>
+                <dd className="mt-1 text-muted-foreground">
+                  {filterValue("from_year", "Any")}–
+                  {filterValue("to_year", "Any")}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-medium">Book length</dt>
+                <dd className="mt-1 text-muted-foreground">
+                  {filterValue("lengths", "None")}
+                </dd>
+              </div>
+              <div>
+                <dt className="font-medium">Import</dt>
+                <dd className="mt-1 break-all text-muted-foreground">
+                  {metadata.importFilename || "Filename unavailable"}
+                </dd>
+              </div>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <dt className="font-medium">Subjects used</dt>
+                <dd className="mt-1 text-muted-foreground">
+                  {metadata.subjectsUsed.length
+                    ? metadata.subjectsUsed.join(", ")
+                    : "None"}
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Applied filter metadata is unavailable for this legacy
+              recommendation run.
+            </p>
+          )}
+        </section>
+      )}
       {result.state !== "loaded" ? (
         <p
           role={result.state === "error" ? "alert" : undefined}

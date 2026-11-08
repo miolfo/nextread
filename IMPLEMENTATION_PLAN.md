@@ -99,6 +99,8 @@ This route remains the recommendation configuration screen, based on `designs/Ne
 
 Each saved book title links in the same tab to its Open Library work page (`https://openlibrary.org` plus the saved work key).
 
+Saved recommendation results include an Applied filters snapshot: included/excluded genres, sort, publication-year bounds, selected lengths, import filename as it existed for that run, and the exact raw subject names selected and sent to Open Library. This metadata is committed atomically with results. Successful empty runs show the same snapshot; legacy runs without metadata explicitly report it unavailable.
+
 ### Introduction
 
 - Heading: “Get book recommendations”.
@@ -128,13 +130,13 @@ Start genre selections empty. Selected genres can be added and removed with stan
 
 ### Behavior
 
-- Recommendation controls and the selected import use transient local state; recommendation preferences and the selected import are not persisted.
+- Recommendation controls and the selected import use transient local state; settings are not reused for future runs, but the exact filters applied by each successful run are persisted as historical metadata.
 - The generate button requires a selected import and calls authenticated `POST /api/recommendations`; it is pending-disabled during the request. The experiment is local-development-only; production responds unavailable.
 - Import metadata query errors and empty import history show honest unavailable/empty states; do not use placeholder import records.
 - The configuration route retains these controls and the authenticated import metadata query. Successful generation opens saved results; failures show a visible error without navigation.
 - Pending button state only; no toasts, generated lists, sample book results, or completion feedback.
-- The local endpoint processes only the selected import through bounded Open Library book lookup, persists exact subjects, then searches current-request subjects for up to ten works. Imported books are excluded by ISBN or conservative normalized title+author; results are limited to one per author including coauthor overlap. Backfill is capped at 150 candidates/three requests within the overall deadline; accepted partial results survive later request failure. Anonymous Open Library requests are spaced at least three seconds apart process-locally across Books API and search calls (not across server instances). See `designs/RECOMMENDATIONS_ENGINE_PLAN.md` for details.
-- Historical migrations first introduced and corrected the candidate table/RPC. The incremental merge migration moves candidate counts into `subject`, removes the old table, and retains the RPC name for callers already deployed. The forward `20261102000000_fix_record_subject_candidates_collation.sql` migration corrects the RPC's grouped expression to avoid SQLSTATE 42803; apply it after the merge migration. Persistence increments `subject.count` while preserving enabled status. Unavailable endpoint failures receive only a phase and sanitized database error code in server logs; SQL messages and subject payloads are never logged.
+- The local endpoint processes only the selected import through bounded Open Library book lookup, persists exact subjects, then searches current-request subjects for up to ten works. It snapshots the exact raw subject names (not normalized search keys) alongside the transient filters and import filename in the same atomic save as results. Imported books are excluded by ISBN or conservative normalized title+author; results are limited to one per author including coauthor overlap. Backfill is capped at 150 candidates/three requests within the overall deadline; accepted partial results survive later request failure. Anonymous Open Library requests are spaced at least three seconds apart process-locally across Books API and search calls (not across server instances). See `designs/RECOMMENDATIONS_ENGINE_PLAN.md` for details.
+- Historical migrations first introduced and corrected the candidate table/RPC. The incremental merge migration moves candidate counts into `subject`, removes the old table, and retains the RPC name for callers already deployed. The forward `20261102000000_fix_record_subject_candidates_collation.sql` migration corrects the RPC's grouped expression to avoid SQLSTATE 42803; apply it after the merge migration. Apply `20261104000000_save_recommendation_metadata.sql` after the recommendation table migration: it replaces the metadata-free save RPC with an ownership-checked atomic metadata-and-books save. Persistence increments `subject.count` while preserving enabled status. Unavailable endpoint failures receive only a phase and sanitized database error code in server logs; SQL messages and subject payloads are never logged.
 - Refreshing the page resets all controls to their defaults.
 
 ### Admin subjects — `/app/admin/subjects`
@@ -167,7 +169,7 @@ Start genre selections empty. Selected genres can be added and removed with stan
 - Live/personalized recommendation results.
 - AI integration and recommendation results UI.
 - Recommendation data integrations.
-- Persistence of recommendation preferences, selected import, or other transient application state (import records are persisted as described above).
+- Reusable recommendation preference settings or persistence of other transient application state (each saved run retains its own applied-filter snapshot, and import records are persisted as described above).
 - Custom branding assets and a bespoke visual design system.
 - Recommendation processing beyond the bounded v1 search contract.
 
@@ -208,6 +210,6 @@ Confirmed implementation choices:
 - Package manager: npm.
 - Initial recommendation count: **10**.
 - Included and excluded genres: initially empty.
-- Supabase email/password authentication protects `/app/*`. Import runs and book records are persisted; recommendation preferences and selected import are not persisted.
+- Supabase email/password authentication protects `/app/*`. Import runs and book records are persisted; recommendation preferences are not reused, but the applied settings, exact subjects used, and filename snapshot are retained per saved recommendation run.
 
 Genre selection and its verified subject-key mapping are implemented as documented above.
