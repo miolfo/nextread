@@ -3,7 +3,7 @@
 A book discovery demo built with Next.js App Router, Supabase email/password auth, TypeScript,
 Tailwind CSS, local shadcn/ui components (the CLI's standard Base Nova defaults),
 and Lucide icons. Discovery uses OpenLibrary API for all recommendations. Project built as a practice
-for figuring out agentic workflows and tooling.
+for figuring out agentic workflows and tooling, as well as getting to know OpenLibrary api capabilities.
 
 ## Screenshots
 
